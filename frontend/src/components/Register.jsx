@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import api from '../api';
-import ImageContainer from './ImageContainer';
 import '../App.scss';
+import panaImage from "../assets/pana.svg";
 
 function Register({ onRegister, onSwitchToLogin }) {
     const [username, setUsername] = useState('');
@@ -112,7 +112,9 @@ function Register({ onRegister, onSwitchToLogin }) {
                     </form>
                 </div>
             </div>
-            <ImageContainer imageType="register" />
+            <div className="image-container">
+                <img src={panaImage} alt="Регистрация"/>
+            </div>
         </div>
     );
 }

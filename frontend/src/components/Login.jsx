@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import api from '../api';
-import ImageContainer from './ImageContainer';
+import panaImage from '../assets/pana.svg'; // Импортируем изображение
 
 function Login({ onLogin, onSwitchToRegister }) {
     const [email, setEmail] = useState('');
@@ -63,7 +63,9 @@ function Login({ onLogin, onSwitchToRegister }) {
                 </form>
             </div>
         </div>
-            <ImageContainer imageType="register" />
+            <div className="image-container">
+                <img src={panaImage} alt="Логин"/>
+            </div>
         </div>
     );
 }

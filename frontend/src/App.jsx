@@ -3,9 +3,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import Profile from './components/Profile';
 import api from './api';
-//import './App.css';
 import './App.scss';
-import ImageContainer from "./components/ImageContainer";
 
 function App() {
     const [auth, setAuth] = useState(false);
