@@ -1,32 +1,33 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import panaImage from '../assets/img/pana.svg';
 
 function Login({ onLogin }) {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
+    const { register, handleSubmit, formState: { errors } } = useForm();
+    const [apiError, setApiError] = React.useState('');
     const navigate = useNavigate();
 
-    const submit = async (e) => {
-        e.preventDefault();
-        if (!email) {
-            setError('Введите email');
-            return;
-        }
-        if (!password) {
-            setError('Введите пароль');
-            return;
-        }
+    const onSubmit = async (data) => {
         try {
-            await api.post('/login', { email, password });
-            setError('');
+            await api.post('/login', { email: data.email, password: data.password });
+            setApiError('');
             onLogin();
             navigate('/profile');
         } catch (err) {
-            setError(err.response?.data?.message || 'Неверный email или пароль');
+            setApiError('Похоже, email или пароль неверные. Попробуйте ещё раз!');
         }
+    };
+
+    const getFirstError = () => {
+        if (errors.email?.type === 'required') return 'Пожалуйста, укажите ваш email.';
+        if (errors.email?.type === 'pattern') return 'Кажется, email введён некорректно. Проверьте формат!';
+        if (errors.password?.type === 'required') return 'Не забудьте ввести пароль!';
+        if (errors.password?.type === 'minLength') return 'Пароль должен содержать минимум 8 символов.';
+        if (errors.password?.type === 'latin') return 'Пароль должен содержать хотя бы одну латинскую букву.';
+        if (errors.password?.type === 'special') return 'Пароль должен содержать хотя бы один специальный символ (например, !@#$).';
+        return '';
     };
 
     return (
@@ -36,18 +37,18 @@ function Login({ onLogin }) {
                     <img className="logo" src="/src/assets/logo/logo.svg" alt="logo" />
                 </div>
                 <div className="form-container">
-                    <form onSubmit={submit}>
+                    <form onSubmit={handleSubmit(onSubmit)}>
                         <h2>Добро пожаловать!</h2>
                         <div className="login-container">
                             <div className="input">
                                 <label htmlFor="email">Email</label>
                                 <input
                                     type="email"
-                                    placeholder=""
                                     id="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
+                                    {...register('email', {
+                                        required: true,
+                                        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+                                    })}
                                 />
                             </div>
                             <div className="input">
@@ -55,10 +56,14 @@ function Login({ onLogin }) {
                                 <input
                                     type="password"
                                     id="password"
-                                    placeholder=""
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
+                                    {...register('password', {
+                                        required: true,
+                                        minLength: 8,
+                                        validate: {
+                                            latin: value => /[a-zA-Z]/.test(value) || 'latin',
+                                            special: value => /[!@#$%^&*(),.?":{}|<>]/.test(value) || 'special'
+                                        }
+                                    })}
                                 />
                             </div>
                         </div>
@@ -69,7 +74,11 @@ function Login({ onLogin }) {
                                     Регистрация
                                 </button>
                             </div>
-                            {error && <p style={{ color: 'red', marginTop: '20px' }}>{error}</p>}
+                            {(getFirstError() || apiError) && (
+                                <p style={{color: '#FF725E', marginTop: '20px'}}>
+                                    {getFirstError() || apiError}
+                                </p>
+                            )}
                         </div>
                     </form>
                 </div>

@@ -1,39 +1,50 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import '../App.scss';
 import panaImage from '../assets/img/pana.svg';
 
 function Register({ onRegister }) {
-    const [username, setUsername] = useState('');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [repeatPassword, setRepeatPassword] = useState('');
-    const [isTermsAccepted, setIsTermsAccepted] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+    const { register, handleSubmit, watch, formState: { errors } } = useForm();
+    const [apiError, setApiError] = React.useState('');
+    const [success, setSuccess] = React.useState('');
     const navigate = useNavigate();
+    const password = watch('password');
 
-    const submit = async (e) => {
-        e.preventDefault();
-        if (password !== repeatPassword) {
-            setError('Пароли не совпадают');
-            return;
-        }
-        if (!isTermsAccepted) {
-            setError('Вы должны согласиться с обработкой данных');
+    const onSubmit = async (data) => {
+        if (!data.isTermsAccepted) {
+            setApiError('Пожалуйста, согласитесь с обработкой персональных данных.');
             return;
         }
         try {
-            await api.post('/registration', { username, email, password });
-            setSuccess('Регистрация успешна');
-            setError('');
+            await api.post('/registration', {
+                username: data.username,
+                email: data.email,
+                password: data.password
+            });
+            setSuccess('Регистрация прошла успешно! Добро пожаловать!');
+            setApiError('');
             onRegister();
             navigate('/profile');
         } catch (err) {
-            setError(err.response?.data?.message || 'Ошибка регистрации');
-            setSuccess('');
+            setApiError('Что-то пошло не так при регистрации. Попробуйте снова!');
         }
+    };
+
+    const getFirstError = () => {
+        if (errors.username?.type === 'required') return 'Пожалуйста, укажите ваше имя и фамилию.';
+        if (errors.username?.type === 'minLength') return 'Имя должно содержать минимум 2 символа.';
+        if (errors.email?.type === 'required') return 'Пожалуйста, укажите ваш email.';
+        if (errors.email?.type === 'pattern') return 'Кажется, email введён некорректно. Проверьте формат!';
+        if (errors.password?.type === 'required') return 'Не забудьте ввести пароль!';
+        if (errors.password?.type === 'minLength') return 'Пароль должен содержать минимум 8 символов.';
+        if (errors.password?.type === 'latin') return 'Пароль должен содержать хотя бы одну латинскую букву.';
+        if (errors.password?.type === 'special') return 'Пароль должен содержать хотя бы один специальный символ (например, !@#$).';
+        if (errors.repeatPassword?.type === 'required') return 'Пожалуйста, повторите пароль.';
+        if (errors.repeatPassword?.type === 'validate') return 'Пароли не совпадают. Проверьте ещё раз!';
+        if (errors.isTermsAccepted?.type === 'required') return 'Пожалуйста, согласитесь с обработкой данных.';
+        return '';
     };
 
     return (
@@ -43,7 +54,7 @@ function Register({ onRegister }) {
                     <img className="logo" src="/src/assets/logo/logo.svg" alt="logo" />
                 </div>
                 <div className="form-container">
-                    <form onSubmit={submit}>
+                    <form onSubmit={handleSubmit(onSubmit)}>
                         <h2>Зарегистрируйтесь</h2>
                         <div className="login-container">
                             <div className="input">
@@ -51,9 +62,10 @@ function Register({ onRegister }) {
                                 <input
                                     type="text"
                                     id="username"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    required
+                                    {...register('username', {
+                                        required: true,
+                                        minLength: 2
+                                    })}
                                 />
                             </div>
                             <div className="input">
@@ -61,9 +73,10 @@ function Register({ onRegister }) {
                                 <input
                                     type="email"
                                     id="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
+                                    {...register('email', {
+                                        required: true,
+                                        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+                                    })}
                                 />
                             </div>
                             <div className="passowrd-container">
@@ -72,9 +85,14 @@ function Register({ onRegister }) {
                                     <input
                                         type="password"
                                         id="password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        required
+                                        {...register('password', {
+                                            required: true,
+                                            minLength: 8,
+                                            validate: {
+                                                latin: value => /[a-zA-Z]/.test(value) || 'latin',
+                                                special: value => /[!@#$%^&*(),.?":{}|<>]/.test(value) || 'special'
+                                            }
+                                        })}
                                     />
                                 </div>
                                 <div className="input">
@@ -82,9 +100,10 @@ function Register({ onRegister }) {
                                     <input
                                         type="password"
                                         id="repeatPassword"
-                                        value={repeatPassword}
-                                        onChange={(e) => setRepeatPassword(e.target.value)}
-                                        required
+                                        {...register('repeatPassword', {
+                                            required: true,
+                                            validate: value => value === password
+                                        })}
                                     />
                                 </div>
                             </div>
@@ -101,18 +120,23 @@ function Register({ onRegister }) {
                                     <label>
                                         <input
                                             type="checkbox"
-                                            checked={isTermsAccepted}
-                                            onChange={(e) => setIsTermsAccepted(e.target.checked)}
+                                            {...register('isTermsAccepted', {
+                                                required: true
+                                            })}
                                         />
                                         <span className="checkmark"></span>
                                         <span className="checkbox-label-text">
-                      Я даю согласие на обработку персональных данных
-                    </span>
+                                            Я даю согласие на обработку персональных данных
+                                        </span>
                                     </label>
                                 </div>
                             </div>
-                            {success && <p style={{ color: 'green' }}>{success}</p>}
-                            {error && <p style={{ color: 'red', marginTop: '20px' }}>{error}</p>}
+                            {success && <p style={{ color: 'green', marginTop: '5px' }}>{success}</p>}
+                            {(getFirstError() || apiError) && (
+                                <p style={{ color: '#FF725E', marginTop: '20px' }}>
+                                    {getFirstError() || apiError}
+                                </p>
+                            )}
                         </div>
                     </form>
                 </div>

@@ -1,10 +1,10 @@
 package ru.psuti.blarket.model;
 
+import java.time.LocalDate;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-
+import org.springframework.security.core.GrantedAuthority;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -15,11 +15,11 @@ import java.util.Collections;
 @AllArgsConstructor
 @Builder
 public class User implements UserDetails {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Getter
     @Column(nullable = false, unique = true)
     private String username;
 
@@ -27,16 +27,23 @@ public class User implements UserDetails {
     private String password;
 
     @Column(nullable = false, unique = true)
-    private String email; // Почта для аутентификации (например, "stenstafford@yahoo.com")
+    private String email;
+
+    @Column(nullable = true)
+    private String phoneNumber;
+
+    @Column(nullable = true)
+    private String address;
+
+    @Column(nullable = true)
+    private LocalDate dateOfBirth;
+
+    @Column(nullable = true)
+    private String gender;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return Collections.emptyList();
-    }
-
-    @Override
-    public String getUsername() {
-        return username; // Возвращает имя пользователя
     }
 
     @Override
