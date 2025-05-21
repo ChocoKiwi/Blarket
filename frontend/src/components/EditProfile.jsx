@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import api from '../api';
-import ImageContainer from './ImageContainer';
 
 function EditProfile({ onLogout }) {
     const { register, handleSubmit, formState: { errors }, reset, setError, setValue, watch } = useForm({ mode: 'onChange' });
@@ -105,9 +104,6 @@ function EditProfile({ onLogout }) {
     return (
         <div className="auth-container">
             <div className="preform-container">
-                <div className="logo-container">
-                    <img className="logo" src="/src/assets/logo.svg" alt="logo" />
-                </div>
                 <div className="form-container">
                     <form onSubmit={handleSubmit(submit)}>
                         <h2>Редактировать профиль</h2>
@@ -201,7 +197,6 @@ function EditProfile({ onLogout }) {
                     </form>
                 </div>
             </div>
-            <ImageContainer imageType="register" />
         </div>
     );
 }
