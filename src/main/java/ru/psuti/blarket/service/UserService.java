@@ -20,34 +20,29 @@ public class UserService {
         if (userRepository.existsByEmail(userDTO.getEmail())) {
             throw new IllegalArgumentException("Email уже зарегистрирован");
         }
-        if (userRepository.findByUsername(userDTO.getUsername()).isPresent()) {
-            throw new IllegalArgumentException("Имя пользователя уже занято");
-        }
         User user = User.builder()
-                .username(userDTO.getUsername())
+                .name(userDTO.getName()) // Изменено с getUsername() на getName()
                 .password(passwordEncoder.encode(userDTO.getPassword()))
                 .email(userDTO.getEmail())
                 .build();
         userRepository.save(user);
     }
 
-    public void updateUser(String username, UserUpdateDTO updateDTO) {
-        User user = userRepository.findByUsername(username)
+    public void updateUser(String email, UserUpdateDTO updateDTO) {
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден"));
 
-        if (updateDTO.getUsername() != null && !updateDTO.getUsername().equals(user.getUsername()) && userRepository.findByUsername(updateDTO.getUsername()).isPresent()) {
-            throw new IllegalArgumentException("Имя пользователя уже занято");
-        }
         if (updateDTO.getEmail() != null && !updateDTO.getEmail().equals(user.getEmail()) && userRepository.existsByEmail(updateDTO.getEmail())) {
             throw new IllegalArgumentException("Email уже зарегистрирован");
         }
 
-        if (updateDTO.getUsername() != null) user.setUsername(updateDTO.getUsername());
+        if (updateDTO.getName() != null) user.setName(updateDTO.getName());
         if (updateDTO.getEmail() != null) user.setEmail(updateDTO.getEmail());
         if (updateDTO.getGender() != null) user.setGender(updateDTO.getGender());
         if (updateDTO.getAddress() != null) user.setAddress(updateDTO.getAddress());
         if (updateDTO.getPhoneNumber() != null) user.setPhoneNumber(updateDTO.getPhoneNumber());
         if (updateDTO.getDateOfBirth() != null) user.setDateOfBirth(updateDTO.getDateOfBirth());
+        if (updateDTO.getAvatar() != null) user.setAvatar(updateDTO.getAvatar());
 
         userRepository.save(user);
     }

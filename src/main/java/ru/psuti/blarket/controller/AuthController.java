@@ -1,6 +1,8 @@
 package ru.psuti.blarket.controller;
 
 import jakarta.servlet.http.HttpSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,11 +18,14 @@ import ru.psuti.blarket.dto.UserUpdateDTO;
 import ru.psuti.blarket.repository.UserRepository;
 import ru.psuti.blarket.service.UserService;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
 public class AuthController {
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+
     @Autowired
     private AuthenticationManager authenticationManager;
 
@@ -65,30 +70,41 @@ public class AuthController {
     public ResponseEntity<?> getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || authentication instanceof AnonymousAuthenticationToken) {
+            logger.warn("Неавторизованный доступ к /user/me");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Неавторизован"));
         }
-        String username = authentication.getName();
-        return userRepository.findByUsername(username)
-                .map(user -> ResponseEntity.ok(Map.of(
-                        "username", user.getUsername(),
-                        "email", user.getEmail(),
-                        "gender", user.getGender(),
-                        "phone", user.getPhoneNumber(),
-                        "date_of_birth", user.getDateOfBirth(),
-                        "address", user.getAddress())))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("message", "Пользователь не найден")));
+        String email = authentication.getName();
+        logger.info("Запрос данных пользователя для email: {}", email);
+        return userRepository.findByEmail(email)
+                .map(user -> {
+                    logger.info("Данные пользователя: name={}, email={}, gender={}, phoneNumber={}, dateOfBirth={}, address={}",
+                            user.getName(), user.getEmail(), user.getGender(), user.getPhoneNumber(), user.getDateOfBirth(), user.getAddress());
+                    Map<String, Object> userData = new HashMap<>();
+                    userData.put("name", user.getName() != null ? user.getName() : "");
+                    userData.put("email", user.getEmail() != null ? user.getEmail() : "");
+                    userData.put("gender", user.getGender());
+                    userData.put("phone", user.getPhoneNumber());
+                    userData.put("date_of_birth", user.getDateOfBirth());
+                    userData.put("address", user.getAddress());
+                    userData.put("avatar", user.getAvatar());
+                    return ResponseEntity.ok(userData);
+                })
+                .orElseGet(() -> {
+                    logger.error("Пользователь с email {} не найден", email);
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                            .body(Map.of("message", "Пользователь не найден"));
+                });
     }
 
-    @PostMapping("/api/user/update")
+    @PostMapping("/user/update")
     public ResponseEntity<?> updateUser(@RequestBody UserUpdateDTO updateDTO, Authentication authentication) {
         if (authentication == null || authentication instanceof AnonymousAuthenticationToken) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Неавторизован"));
         }
 
-        String username = authentication.getName();
+        String email = authentication.getName();
         try {
-            userService.updateUser(username, updateDTO);
+            userService.updateUser(email, updateDTO);
             return ResponseEntity.ok(Map.of("message", "Данные обновлены"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));

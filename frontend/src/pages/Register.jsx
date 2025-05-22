@@ -19,7 +19,7 @@ function Register({ onRegister }) {
         }
         try {
             await api.post('/registration', {
-                username: data.username,
+                name: data.name,
                 email: data.email,
                 password: data.password
             });
@@ -33,8 +33,8 @@ function Register({ onRegister }) {
     };
 
     const getFirstError = () => {
-        if (errors.username?.type === 'required') return 'Пожалуйста, укажите ваше имя и фамилию.';
-        if (errors.username?.type === 'minLength') return 'Имя должно содержать минимум 2 символа.';
+        if (errors.name?.type === 'required') return 'Пожалуйста, укажите ваше имя и фамилию.';
+        if (errors.name?.type === 'minLength') return 'Имя должно содержать минимум 2 символа.';
         if (errors.email?.type === 'required') return 'Пожалуйста, укажите ваш email.';
         if (errors.email?.type === 'pattern') return 'Кажется, email введён некорректно. Проверьте формат!';
         if (errors.password?.type === 'required') return 'Не забудьте ввести пароль!';
@@ -58,11 +58,11 @@ function Register({ onRegister }) {
                         <h2>Зарегистрируйтесь</h2>
                         <div className="login-container">
                             <div className="input">
-                                <label htmlFor="username">Имя и фамилия</label>
+                                <label htmlFor="name">Имя и фамилия</label>
                                 <input
                                     type="text"
-                                    id="username"
-                                    {...register('username', {
+                                    id="name"
+                                    {...register('name', {
                                         required: true,
                                         minLength: 2
                                     })}

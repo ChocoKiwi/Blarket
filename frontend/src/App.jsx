@@ -20,7 +20,7 @@ function App() {
         const checkAuth = async () => {
             try {
                 const response = await api.get('/user/me');
-                if (response.data.username) {
+                if (response.data.name) {
                     setAuth(true);
                 }
             } catch (err) {

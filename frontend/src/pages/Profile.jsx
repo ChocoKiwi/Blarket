@@ -6,14 +6,49 @@ import EditProfile from '../components/EditProfile';
 
 const MyAds = () => <div>Мои объявления</div>;
 
-function ProfileMenu({ user, handleLogout }) {
+function ProfileMenu({ user, handleLogout, handleAvatarChange }) {
     const location = useLocation();
 
     return (
         <div className="profile-menu">
-            <img src={user.avatar || '/placeholder-avatar.png'} alt="Avatar" className="avatar" />
+            {user.avatar ? (
+                <div className="avatar-container">
+                    <img
+                        src={user.avatar}
+                        alt="Avatar"
+                        className="avatar"
+                        onClick={() => document.getElementById('avatarInput').click()}
+                        style={{ cursor: 'pointer' }}
+                    />
+                    <input
+                        type="file"
+                        id="avatarInput"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={handleAvatarChange}
+                    />
+                </div>
+            ) : (
+                <div className="avatar-container">
+                    <img
+                        src="/placeholder-avatar.png"
+                        alt="Placeholder Avatar"
+                        className="avatar"
+                    />
+                    <input
+                        type="file"
+                        id="avatarInput"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={handleAvatarChange}
+                    />
+                    <button onClick={() => document.getElementById('avatarInput').click()}>
+                        Загрузить аватар
+                    </button>
+                </div>
+            )}
             <p className="name">{user.name}</p>
-            <p className="role">{user.role}</p>
+            <p className="role">{user.role || 'Пользователь'}</p>
             <ul className="menu-list">
                 <li>
                     <Link to="/profile/info" className={location.pathname === '/profile/info' ? 'active' : ''}>
@@ -62,6 +97,29 @@ function Profile({ onLogout }) {
         fetchUser();
     }, [onLogout, navigate]);
 
+    const handleAvatarChange = async (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            try {
+                const reader = new FileReader();
+                reader.onloadend = async () => {
+                    const base64String = reader.result;
+                    try {
+                        await api.post('/user/update', { ...user, avatar: base64String });
+                        setUser({ ...user, avatar: base64String });
+                    } catch (err) {
+                        console.error('Ошибка при обновлении аватара:', err);
+                        setError('Не удалось обновить аватар');
+                    }
+                };
+                reader.readAsDataURL(file);
+            } catch (err) {
+                console.error('Ошибка при чтении файла:', err);
+                setError('Не удалось загрузить изображение');
+            }
+        }
+    };
+
     if (error) {
         return <div>{error}</div>;
     }
@@ -85,14 +143,14 @@ function Profile({ onLogout }) {
     return (
         <div className="main-container">
             <Header />
-                <div className="profile-content">
-                    <Routes>
-                        <Route path="/ads" element={<MyAds />} />
-                        <Route path="/" element={<EditProfile />} />
-                        <Route path="/info" element={<EditProfile />} />
-                    </Routes>
-                </div>
-                <ProfileMenu user={user} handleLogout={handleLogout} />
+            <div className="profile-content">
+                <Routes>
+                    <Route path="/ads" element={<MyAds />} />
+                    <Route path="/" element={<EditProfile />} />
+                    <Route path="/info" element={<EditProfile />} />
+                </Routes>
+            </div>
+            <ProfileMenu user={user} handleLogout={handleLogout} handleAvatarChange={handleAvatarChange} />
         </div>
     );
 }

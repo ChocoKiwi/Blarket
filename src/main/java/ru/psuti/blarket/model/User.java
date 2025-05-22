@@ -19,9 +19,8 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Getter
-    @Column(nullable = false, unique = true)
-    private String username;
+    @Column(nullable = false) // Переименовано из username в name
+    private String name;
 
     @Column(nullable = false)
     private String password;
@@ -41,9 +40,17 @@ public class User implements UserDetails {
     @Column(nullable = true)
     private String gender;
 
+    @Column(nullable = true, length = 10485760) // Увеличенный размер для Base64
+    private String avatar; // Храним изображение как Base64 строку
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return Collections.emptyList();
+    }
+
+    @Override
+    public String getUsername() {
+        return email; // Spring Security использует email как идентификатор
     }
 
     @Override

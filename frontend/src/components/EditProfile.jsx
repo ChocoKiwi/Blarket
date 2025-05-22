@@ -12,9 +12,9 @@ function EditProfile({ onLogout }) {
             try {
                 const response = await api.get('/user/me');
                 console.log('API response:', response.data);
-                if (response.data && response.data.username) {
+                if (response.data && response.data.email) { // Изменено с name на email, так как name может быть null
                     const userData = {
-                        username: response.data.username || '',
+                        name: response.data.name || '',
                         email: response.data.email || '',
                         phoneNumber: response.data.phone ? formatPhoneNumber(response.data.phone) : '',
                         address: response.data.address || '',
@@ -80,17 +80,17 @@ function EditProfile({ onLogout }) {
 
     const submit = async (data) => {
         try {
-            await api.post('/api/user/update', {
-                username: data.username || undefined,
+            await api.post('/user/update', {
+                name: data.name || undefined,
                 email: data.email || undefined,
-                phone: data.phoneNumber ? data.phoneNumber.replace(/[^\d]/g, '') : undefined,
+                phoneNumber: data.phoneNumber ? data.phoneNumber.replace(/[^\d]/g, '') : undefined,
                 address: data.address || undefined,
-                date_of_birth: data.dateOfBirth || undefined,
+                dateOfBirth: data.dateOfBirth || undefined,
                 gender: data.gender || undefined,
             });
             setInitialData(data);
             reset(data);
-        } catch (err) {
+        } catch (err) { // Добавлено catch
             setError('api', {
                 type: 'manual',
                 message: err.response?.data?.message || 'Ошибка при обновлении данных',
@@ -137,15 +137,14 @@ function EditProfile({ onLogout }) {
                     </div>
                 </div>
                 <div className="input">
-                    <label htmlFor="username">Имя пользователя</label>
+                    <label htmlFor="name">Имя</label>
                     <input
                         type="text"
-                        id="username"
-                        {...register('username', {
-                            required: 'Пожалуйста, заполните имя пользователя',
+                        id="name"
+                        {...register('name', {
                             minLength: {
                                 value: 3,
-                                message: 'Имя пользователя должно содержать не менее 3 символов'
+                                message: 'Имя должно содержать не менее 3 символов'
                             },
                         })}
                     />
