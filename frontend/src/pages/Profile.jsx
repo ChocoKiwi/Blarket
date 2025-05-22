@@ -85,7 +85,6 @@ function Profile({ onLogout }) {
     return (
         <div className="main-container">
             <Header />
-            <div className="profile-container">
                 <div className="profile-content">
                     <Routes>
                         <Route path="/ads" element={<MyAds />} />
@@ -94,7 +93,6 @@ function Profile({ onLogout }) {
                     </Routes>
                 </div>
                 <ProfileMenu user={user} handleLogout={handleLogout} />
-            </div>
         </div>
     );
 }

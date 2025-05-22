@@ -44,7 +44,6 @@ function App() {
 
     return (
         <Router>
-            <div className="main-auth-container">
                 <Routes>
                     <Route path="/login" element={!auth ? <Login onLogin={onLogin} onSwitchToRegister={() => {}} /> : <Navigate to="/profile" />} />
                     <Route path="/register" element={!auth ? <Register onRegister={onRegister} onSwitchToLogin={() => {}} /> : <Navigate to="/profile" />} />
@@ -56,7 +55,6 @@ function App() {
                     <Route path="/settings" element={auth ? <Settings /> : <Navigate to="/login" />} />
                     <Route path="/" element={auth ? <Home /> : <Navigate to="/login" />} />
                 </Routes>
-            </div>
         </Router>
     );
 }

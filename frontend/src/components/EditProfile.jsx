@@ -11,9 +11,18 @@ function EditProfile({ onLogout }) {
         const fetchUser = async () => {
             try {
                 const response = await api.get('/user/me');
+                console.log('API response:', response.data);
                 if (response.data && response.data.username) {
-                    setInitialData(response.data);
-                    reset(response.data); // Устанавливаем начальные значения формы
+                    const userData = {
+                        username: response.data.username || '',
+                        email: response.data.email || '',
+                        phoneNumber: response.data.phone ? formatPhoneNumber(response.data.phone) : '',
+                        address: response.data.address || '',
+                        dateOfBirth: response.data.date_of_birth ? response.data.date_of_birth : '',
+                        gender: response.data.gender || ''
+                    };
+                    setInitialData(userData);
+                    reset(userData);
                 } else {
                     throw new Error('Данные пользователя не получены');
                 }
@@ -27,7 +36,7 @@ function EditProfile({ onLogout }) {
     }, [reset, onLogout, setError]);
 
     const formatPhoneNumber = (value) => {
-        if (!value) return value;
+        if (!value) return '';
         const onlyDigits = value.replace(/[^\d]/g, '');
         if (onlyDigits.length === 0) return '+7 ';
         let formatted = '+7 ';
@@ -52,20 +61,20 @@ function EditProfile({ onLogout }) {
     };
 
     const validatePhoneNumber = (value) => {
-        if (!value) return true; // Поле необязательное
+        if (!value) return true;
         const digits = value.replace(/[^\d]/g, '');
         return digits.length === 11 || 'Номер телефона должен содержать 11 цифр';
     };
 
     const validateDateOfBirth = (value) => {
-        if (!value) return true; // Поле необязательное
+        if (!value) return true;
         const date = new Date(value);
         const today = new Date();
         return date <= today || 'Дата рождения не может быть в будущем';
     };
 
     const validateGender = (value) => {
-        if (!value) return true; // Поле необязательное
+        if (!value) return true;
         return ['MALE', 'FEMALE'].includes(value) || 'Пол должен быть MALE или FEMALE';
     };
 
@@ -74,13 +83,13 @@ function EditProfile({ onLogout }) {
             await api.post('/api/user/update', {
                 username: data.username || undefined,
                 email: data.email || undefined,
-                phoneNumber: data.phoneNumber || undefined,
+                phone: data.phoneNumber ? data.phoneNumber.replace(/[^\d]/g, '') : undefined,
                 address: data.address || undefined,
-                dateOfBirth: data.dateOfBirth || undefined,
+                date_of_birth: data.dateOfBirth || undefined,
                 gender: data.gender || undefined,
             });
-            setInitialData(data); // Обновляем начальные данные
-            reset(data); // Сбрасываем форму
+            setInitialData(data);
+            reset(data);
         } catch (err) {
             setError('api', {
                 type: 'manual',
@@ -90,7 +99,7 @@ function EditProfile({ onLogout }) {
     };
 
     const handleReset = () => {
-        reset(initialData); // Сбрасываем на исходные данные
+        reset(initialData);
     };
 
     const errorMessages = Object.values(errors)
@@ -102,102 +111,101 @@ function EditProfile({ onLogout }) {
     }
 
     return (
-        <div className="auth-container">
-            <div className="preform-container">
-                <div className="form-container">
-                    <form onSubmit={handleSubmit(submit)}>
-                        <h2>Редактировать профиль</h2>
-                        <div className="login-container">
-                            <div className="input">
-                                <label htmlFor="username">Имя пользователя</label>
-                                <input
-                                    type="text"
-                                    id="username"
-                                    {...register('username', {
-                                        required: 'Пожалуйста, заполните имя пользователя',
-                                        minLength: { value: 3, message: 'Имя пользователя должно содержать не менее 3 символов' },
-                                    })}
-                                />
-                            </div>
-                            <div className="input">
-                                <label htmlFor="email">Email</label>
-                                <input
-                                    type="email"
-                                    id="email"
-                                    {...register('email', {
-                                        required: 'Пожалуйста, заполните поле с почтой',
-                                        pattern: {
-                                            value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                                            message: 'Вы указали почту неправильного формата',
-                                        },
-                                    })}
-                                />
-                            </div>
-                            <div className="input">
-                                <label htmlFor="phoneNumber">Номер телефона</label>
-                                <input
-                                    type="text"
-                                    id="phoneNumber"
-                                    {...register('phoneNumber', { validate: validatePhoneNumber })}
-                                    onChange={handlePhoneNumberChange}
-                                    value={formatPhoneNumber(phoneNumber)}
-                                />
-                            </div>
-                            <div className="input">
-                                <label htmlFor="address">Адрес</label>
-                                <input
-                                    type="text"
-                                    id="address"
-                                    {...register('address')}
-                                />
-                            </div>
-                            <div className="input">
-                                <label htmlFor="dateOfBirth">Дата рождения</label>
-                                <input
-                                    type="date"
-                                    id="dateOfBirth"
-                                    {...register('dateOfBirth', { validate: validateDateOfBirth })}
-                                />
-                            </div>
-                            <div className="input">
-                                <label>Пол</label>
-                                <div style={{ display: 'flex', gap: '20px', marginTop: '5px' }}>
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            value="MALE"
-                                            {...register('gender', { validate: validateGender })}
-                                        />
-                                        Мужской
-                                    </label>
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            value="FEMALE"
-                                            {...register('gender', { validate: validateGender })}
-                                        />
-                                        Женский
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="with-error">
-                            <div className="button-container">
-                                <button type="submit" className="primary">Сохранить</button>
-                                <button type="button" className="secondary" onClick={handleReset}>Сбросить</button>
-                            </div>
-                            {errorMessages.length > 0 && (
-                                <div style={{ marginTop: '20px' }}>
-                                    {errorMessages.map((error, index) => (
-                                        <p style={{ color: '#FF725E', marginTop: '5px' }} key={index}>{error}</p>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </form>
+        <form onSubmit={handleSubmit(submit)}>
+            <h2>Редактировать профиль</h2>
+            <div className="update-container">
+                <div className="input radio" style={{ background: 'none', padding: '0' }}>
+                    <div style={{ display: 'flex', gap: '30px' }}>
+                        <label className="custom-radio">
+                            <input
+                                type="radio"
+                                value="MALE"
+                                {...register('gender', { validate: validateGender })}
+                            />
+                            Мужчина
+                            <span className="radio-mark"></span>
+                        </label>
+                        <label className="custom-radio">
+                            <input
+                                type="radio"
+                                value="FEMALE"
+                                {...register('gender', { validate: validateGender })}
+                            />
+                            Женщина
+                            <span className="radio-mark"></span>
+                        </label>
+                    </div>
+                </div>
+                <div className="input">
+                    <label htmlFor="username">Имя пользователя</label>
+                    <input
+                        type="text"
+                        id="username"
+                        {...register('username', {
+                            required: 'Пожалуйста, заполните имя пользователя',
+                            minLength: {
+                                value: 3,
+                                message: 'Имя пользователя должно содержать не менее 3 символов'
+                            },
+                        })}
+                    />
+                </div>
+                <div className="input">
+                    <label htmlFor="email">Email</label>
+                    <input
+                        type="email"
+                        id="email"
+                        {...register('email', {
+                            required: 'Пожалуйста, заполните поле с почтой',
+                            pattern: {
+                                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                                message: 'Вы указали почту неправильного формата',
+                            },
+                        })}
+                    />
+                </div>
+                <div className="input">
+                    <label htmlFor="address">Адрес</label>
+                    <input
+                        type="text"
+                        id="address"
+                        {...register('address')}
+                    />
+                </div>
+                <div className="phone-date-container">
+                    <div className="input">
+                        <label htmlFor="phoneNumber">Номер телефона</label>
+                        <input
+                            type="text"
+                            id="phoneNumber"
+                            {...register('phoneNumber', { validate: validatePhoneNumber })}
+                            onChange={handlePhoneNumberChange}
+                        />
+                    </div>
+                    <div className="input">
+                        <label htmlFor="dateOfBirth">Дата рождения</label>
+                        <input
+                            type="date"
+                            id="dateOfBirth"
+                            {...register('dateOfBirth', { validate: validateDateOfBirth })}
+                        />
+                    </div>
                 </div>
             </div>
-        </div>
+            <div className="with-error">
+                <div className="button-container">
+                    <button type="submit" className="primary">Сохранить</button>
+                    <button type="button" className="secondary" onClick={handleReset}>Сбросить</button>
+                </div>
+                {errorMessages.length > 0 && (
+                    <div style={{ marginTop: '20px' }}>
+                        {errorMessages.map((error, index) => (
+                            <p style={{ color: '#FF725E', marginTop: '5px' }} key={index}>{error}</p>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </form>
     );
 }
 

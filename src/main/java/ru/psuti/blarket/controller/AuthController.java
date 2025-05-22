@@ -71,7 +71,11 @@ public class AuthController {
         return userRepository.findByUsername(username)
                 .map(user -> ResponseEntity.ok(Map.of(
                         "username", user.getUsername(),
-                        "email", user.getEmail())))
+                        "email", user.getEmail(),
+                        "gender", user.getGender(),
+                        "phone", user.getPhoneNumber(),
+                        "date_of_birth", user.getDateOfBirth(),
+                        "address", user.getAddress())))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("message", "Пользователь не найден")));
     }
