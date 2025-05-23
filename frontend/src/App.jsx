@@ -45,7 +45,7 @@ function App() {
     return (
         <Router>
                 <Routes>
-                    <Route path="/login" element={!auth ? <Login onLogin={onLogin} onSwitchToRegister={() => {}} /> : <Navigate to="/profile" />} />
+                    <Route path="/login" element={!auth ? <Login onLogin={onLogin} onSwitchToRegister={() => {}} /> : <Navigate to="/profile/info" />} />
                     <Route path="/register" element={!auth ? <Register onRegister={onRegister} onSwitchToLogin={() => {}} /> : <Navigate to="/profile" />} />
                     <Route path="/profile/*" element={auth ? <Profile onLogout={onLogout} /> : <Navigate to="/login" />} />
                     <Route path="/home" element={auth ? <Home /> : <Navigate to="/login" />} />

@@ -3,37 +3,34 @@ import { Link, useLocation, useNavigate, Routes, Route } from 'react-router-dom'
 import api from '../api';
 import Header from '../components/Header';
 import EditProfile from '../components/EditProfile';
+import UserAvatar from '../assets/icons/user-avatar.svg'
+import icons from "../assets/icons/icons";
 
 const MyAds = () => <div>Мои объявления</div>;
 
 function ProfileMenu({ user, handleLogout, handleAvatarChange }) {
+    const navLinks = [
+        { path: '/profile/info', name: 'Персональная информация', icon: 'user' },
+        { path: '/profile/ads', name: 'Мои объявления', icon: 'bag' },
+    ];
     const location = useLocation();
 
     return (
         <div className="profile-menu">
-            {user.avatar ? (
+            <div className="avatar-text-container">
                 <div className="avatar-container">
                     <img
-                        src={user.avatar}
+                        src={user.avatar || UserAvatar}
                         alt="Avatar"
                         className="avatar"
                         onClick={() => document.getElementById('avatarInput').click()}
                         style={{ cursor: 'pointer' }}
                     />
-                    <input
-                        type="file"
-                        id="avatarInput"
-                        accept="image/*"
-                        style={{ display: 'none' }}
-                        onChange={handleAvatarChange}
-                    />
-                </div>
-            ) : (
-                <div className="avatar-container">
                     <img
-                        src="/placeholder-avatar.png"
-                        alt="Placeholder Avatar"
-                        className="avatar"
+                        src={icons.editAvatar}
+                        alt="Edit Avatar"
+                        className="edit-avatar-icon"
+                        onClick={() => document.getElementById('avatarInput').click()}
                     />
                     <input
                         type="file"
@@ -42,28 +39,31 @@ function ProfileMenu({ user, handleLogout, handleAvatarChange }) {
                         style={{ display: 'none' }}
                         onChange={handleAvatarChange}
                     />
-                    <button onClick={() => document.getElementById('avatarInput').click()}>
-                        Загрузить аватар
-                    </button>
                 </div>
-            )}
-            <p className="name">{user.name}</p>
-            <p className="role">{user.role || 'Пользователь'}</p>
-            <ul className="menu-list">
-                <li>
-                    <Link to="/profile/info" className={location.pathname === '/profile/info' ? 'active' : ''}>
-                        Персональная информация
+                <div className="username-container">
+                    <p className="name">{user.name}</p>
+                    <p className="role">{user.role || 'Пользователь'}</p>
+                </div>
+            </div>
+            <nav className="nav">
+                {navLinks.map(({ path, name, icon }) => (
+                    <Link
+                        key={path}
+                        to={path}
+                        className={`nav-link ${location.pathname === path ? 'active' : ''}`}
+                    >
+                        {icons[icon]({ className: `menu-icon icon-${icon}` })}
+                        {name}
                     </Link>
-                </li>
-                <li>
-                    <Link to="/profile/ads" className={location.pathname === '/profile/ads' ? 'active' : ''}>
-                        Мои объявления
-                    </Link>
-                </li>
-                <li>
-                    <button onClick={handleLogout}>Выйти из аккаунта</button>
-                </li>
-            </ul>
+                ))}
+                <a href="#" className="nav-link" onClick={(e) => {
+                    e.preventDefault();
+                    handleLogout();
+                }}>
+                    {icons['exit']({ className: 'menu-icon icon-exit' })}
+                    Выйти из аккаунта
+                </a>
+            </nav>
         </div>
     );
 }
@@ -146,8 +146,8 @@ function Profile({ onLogout }) {
             <div className="profile-content">
                 <Routes>
                     <Route path="/ads" element={<MyAds />} />
-                    <Route path="/" element={<EditProfile />} />
-                    <Route path="/info" element={<EditProfile />} />
+                    <Route path="/" element={<EditProfile setUser={setUser} onLogout={onLogout} />} />
+                    <Route path="/info" element={<EditProfile setUser={setUser} onLogout={onLogout} />} />
                 </Routes>
             </div>
             <ProfileMenu user={user} handleLogout={handleLogout} handleAvatarChange={handleAvatarChange} />

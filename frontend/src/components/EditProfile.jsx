@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import api from '../api';
 
-function EditProfile({ onLogout }) {
+function EditProfile({ onLogout, setUser }) {
     const { register, handleSubmit, formState: { errors }, reset, setError, setValue, watch } = useForm({ mode: 'onChange' });
     const [initialData, setInitialData] = useState(null);
     const phoneNumber = watch('phoneNumber', '');
@@ -12,7 +12,7 @@ function EditProfile({ onLogout }) {
             try {
                 const response = await api.get('/user/me');
                 console.log('API response:', response.data);
-                if (response.data && response.data.email) { // Изменено с name на email, так как name может быть null
+                if (response.data && response.data.email) {
                     const userData = {
                         name: response.data.name || '',
                         email: response.data.email || '',
@@ -90,7 +90,8 @@ function EditProfile({ onLogout }) {
             });
             setInitialData(data);
             reset(data);
-        } catch (err) { // Добавлено catch
+            setUser((prev) => ({ ...prev, ...data }));
+        } catch (err) {
             setError('api', {
                 type: 'manual',
                 message: err.response?.data?.message || 'Ошибка при обновлении данных',
@@ -137,7 +138,7 @@ function EditProfile({ onLogout }) {
                     </div>
                 </div>
                 <div className="input">
-                    <label htmlFor="name">Имя</label>
+                    <label htmlFor="name">Фамилия и имя</label>
                     <input
                         type="text"
                         id="name"

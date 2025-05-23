@@ -58,7 +58,7 @@ function Register({ onRegister }) {
                         <h2>Зарегистрируйтесь</h2>
                         <div className="login-container">
                             <div className="input">
-                                <label htmlFor="name">Имя и фамилия</label>
+                                <label htmlFor="name">Фамилия и имя</label>
                                 <input
                                     type="text"
                                     id="name"
