@@ -25,8 +25,8 @@ const CreateAnnouncement = () => {
             description: data.description,
             price: parseFloat(data.price),
             quantity: parseInt(data.quantity),
-            city: data.city,
-            itemCondition: data.itemCondition, // Изменено с condition
+            address: data.address,
+            itemCondition: data.itemCondition,
             imageUrls: imagePreviews.filter(url => url !== null),
         };
 
@@ -65,8 +65,8 @@ const CreateAnnouncement = () => {
                 </div>
                 <div className="input">
                     <label>Город</label>
-                    <input {...register('city', { required: true })} />
-                    {errors.city && <span>Это поле обязательно</span>}
+                    <input {...register('address', { required: true })} />
+                    {errors.address && <span>Это поле обязательно</span>}
                 </div>
                 <div className="update-container">
                     <label>Состояние</label>
@@ -76,7 +76,7 @@ const CreateAnnouncement = () => {
                                 <input
                                     type="radio"
                                     value={condition}
-                                    {...register('itemCondition', { required: true })} // Изменено с condition
+                                    {...register('itemCondition', { required: true })}
                                     id={`itemCondition-${condition}`}
                                 />
                                 <span className="radio-mark"></span>

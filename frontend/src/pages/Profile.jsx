@@ -6,6 +6,7 @@ import EditProfile from '../components/EditProfile';
 import UserAvatar from '../assets/icons/user-avatar.svg';
 import icons from "../assets/icons/icons";
 import CreateAnnouncement from "../components/CreateAnnouncement";
+import AnnouncementsList from "../components/AnnouncementsList";
 
 const MyAds = () => <div>Мои объявления</div>;
 
@@ -147,7 +148,8 @@ function Profile({ onLogout }) {
                 <Routes>
                     <Route path="/" element={<EditProfile user={user} setUser={setUser} onLogout={onLogout} />} />
                     <Route path="/info" element={<EditProfile user={user} setUser={setUser} onLogout={onLogout} />} />
-                    <Route path="/ads" element={<CreateAnnouncement user={user} setUser={setUser} onLogout={onLogout} />} />
+                    <Route path="/ads/create" element={<CreateAnnouncement user={user} setUser={setUser} onLogout={onLogout} />} />
+                    <Route path="/ads" element={<AnnouncementsList user={user} setUser={setUser} onLogout={onLogout} />} />
                 </Routes>
             </div>
             <ProfileMenu user={user} handleLogout={handleLogout} handleAvatarChange={handleAvatarChange} />

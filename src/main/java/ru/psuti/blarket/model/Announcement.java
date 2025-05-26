@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -28,23 +29,15 @@ public class Announcement {
 
     private BigDecimal price;
 
-    private Long categoryId;
-
     @Column(nullable = true, length = 10485760)
     private String imageUrls;
 
     @Column(columnDefinition = "TEXT")
-    private String location;
+    private String address;
 
     private Integer quantity;
 
     private Long userId;
-
-    @Enumerated(EnumType.STRING)
-    private Status status;
-
-    @Enumerated(EnumType.STRING)
-    private AdType adType;
 
     private LocalDateTime createdAt;
 
@@ -53,20 +46,13 @@ public class Announcement {
     private Integer views;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "item_condition") // Изменено с condition на item_condition
+    @Column(name = "item_condition")
+    @JsonProperty("itemCondition")
     private Condition condition;
 
     private Float rating;
 
-    public enum Status {
-        ACTIVE, DRAFT, ARCHIVED
-    }
-
-    public enum AdType {
-        FREE, REGULAR, BUSINESS
-    }
-
     public enum Condition {
-        NEW, USED, BUYSELL // Обновлено, чтобы соответствовать фронтенду
+        NEW, USED, BUYSELL
     }
 }

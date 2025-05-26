@@ -24,12 +24,10 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         announcement.setTitle(dto.getTitle());
         announcement.setDescription(dto.getDescription());
         announcement.setPrice(dto.getPrice());
-        announcement.setCategoryId(dto.getCategoryId());
         announcement.setQuantity(dto.getQuantity());
         announcement.setUserId(userId);
-        announcement.setStatus(dto.getStatus() != null ? dto.getStatus() : Announcement.Status.DRAFT);
-        announcement.setAdType(dto.getAdType());
-        announcement.setCondition(dto.getItemCondition()); // Изменено с condition
+        announcement.setAddress(dto.getAddress());
+        announcement.setCondition(dto.getItemCondition());
         announcement.setCreatedAt(LocalDateTime.now());
 
         if (dto.getImageUrls() != null) {
@@ -37,13 +35,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                 announcement.setImageUrls(objectMapper.writeValueAsString(dto.getImageUrls()));
             } catch (Exception e) {
                 throw new RuntimeException("Ошибка преобразования imageUrls");
-            }
-        }
-        if (dto.getLocation() != null) {
-            try {
-                announcement.setLocation(objectMapper.writeValueAsString(dto.getLocation()));
-            } catch (Exception e) {
-                throw new RuntimeException("Ошибка преобразования location");
             }
         }
 
@@ -61,24 +52,14 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         if (dto.getTitle() != null) announcement.setTitle(dto.getTitle());
         if (dto.getDescription() != null) announcement.setDescription(dto.getDescription());
         if (dto.getPrice() != null) announcement.setPrice(dto.getPrice());
-        if (dto.getCategoryId() != null) announcement.setCategoryId(dto.getCategoryId());
         if (dto.getQuantity() != null) announcement.setQuantity(dto.getQuantity());
-        if (dto.getStatus() != null) announcement.setStatus(dto.getStatus());
-        if (dto.getAdType() != null) announcement.setAdType(dto.getAdType());
-        if (dto.getItemCondition() != null) announcement.setCondition(dto.getItemCondition()); // Изменено с condition
+        if (dto.getItemCondition() != null) announcement.setCondition(dto.getItemCondition());
 
         if (dto.getImageUrls() != null) {
             try {
                 announcement.setImageUrls(objectMapper.writeValueAsString(dto.getImageUrls()));
             } catch (Exception e) {
                 throw new RuntimeException("Ошибка преобразования imageUrls");
-            }
-        }
-        if (dto.getLocation() != null) {
-            try {
-                announcement.setLocation(objectMapper.writeValueAsString(dto.getLocation()));
-            } catch (Exception e) {
-                throw new RuntimeException("Ошибка преобразования location");
             }
         }
 

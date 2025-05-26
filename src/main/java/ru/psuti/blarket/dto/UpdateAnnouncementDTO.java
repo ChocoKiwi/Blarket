@@ -17,8 +17,6 @@ public class UpdateAnnouncementDTO {
     private String city;
     private Map<String, Double> location;
     private Integer quantity;
-    private Announcement.Status status;
-    private Announcement.AdType adType;
-    private Announcement.Condition itemCondition; // Изменено с condition
+    private Announcement.Condition itemCondition;
     private List<String> deliveryOptions;
 }
