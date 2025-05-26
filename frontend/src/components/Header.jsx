@@ -1,19 +1,21 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import api from '../api';
 import logoImage from '../assets/logo/short-logo.svg';
 import icons from '../assets/icons/icons';
 import userAvatar from "../assets/icons/user-avatar.svg";
 
-function Header() {
-    const [user, setUser] = useState(null);
+function Header({ user, setUser }) {
     const location = useLocation();
 
     const fetchUser = async () => {
         try {
             const response = await api.get('/user/me');
-            if (response.data) {
+            if (response.data && typeof setUser === 'function') {
+                console.log('Header fetchUser response:', response.data);
                 setUser(response.data);
+            } else {
+                console.warn('setUser is not a function or response data is invalid');
             }
         } catch (err) {
             console.error('Ошибка при получении пользователя для Header:', err);
@@ -21,18 +23,12 @@ function Header() {
     };
 
     useEffect(() => {
-        fetchUser(); // Первоначальная загрузка
-        const interval = setInterval(fetchUser, 5000); // Опрос каждые 5 секунд
-        return () => clearInterval(interval); // Очистка интервала при размонтировании
-    }, []);
+        if (!user) {
+            fetchUser();
+        }
+    }, [user]);
 
-    const navLinks = [
-        { path: '/home', name: 'Главная', icon: 'home' },
-        { path: '/cart', name: 'Корзина', icon: 'cart' },
-        { path: '/messages', name: 'Сообщения', icon: 'messages' },
-        { path: '/settings', name: 'Настройки', icon: 'settings' },
-        { path: '/notifications', name: 'Уведомления', icon: 'notifications' },
-    ];
+    console.log('Header user.avatar:', user?.avatar);
 
     return (
         <header className="header">
@@ -40,7 +36,13 @@ function Header() {
                 <img src={logoImage} alt="Logo" />
             </div>
             <nav className="nav">
-                {navLinks.map(({ path, name, icon }) => (
+                {[
+                    { path: '/home', name: 'Главная', icon: 'home' },
+                    { path: '/cart', name: 'Корзина', icon: 'cart' },
+                    { path: '/messages', name: 'Сообщения', icon: 'messages' },
+                    { path: '/settings', name: 'Настройки', icon: 'settings' },
+                    { path: '/notifications', name: 'Уведомления', icon: 'notifications' },
+                ].map(({ path, name, icon }) => (
                     <Link
                         key={path}
                         to={path}
@@ -59,6 +61,7 @@ function Header() {
                             src={user.avatar || userAvatar}
                             alt="Аватар"
                             className="nav-avatar"
+                            onError={() => console.error('Ошибка загрузки аватарки в Header')}
                         />
                         Профиль
                     </Link>

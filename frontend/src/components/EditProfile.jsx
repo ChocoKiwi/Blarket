@@ -1,39 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import api from '../api';
+import success from "../assets/icons/sucsses.svg";
 
-function EditProfile({ onLogout, setUser }) {
+function EditProfile({ onLogout, setUser, user }) {
     const { register, handleSubmit, formState: { errors }, reset, setError, setValue, watch } = useForm({ mode: 'onChange' });
     const [initialData, setInitialData] = useState(null);
+    const [notificationMessage, setNotificationMessage] = useState('');
+    const [notificationState, setNotificationState] = useState('hidden');
     const phoneNumber = watch('phoneNumber', '');
 
-    useEffect(() => {
-        const fetchUser = async () => {
-            try {
-                const response = await api.get('/user/me');
-                console.log('API response:', response.data);
-                if (response.data && response.data.email) {
-                    const userData = {
-                        name: response.data.name || '',
-                        email: response.data.email || '',
-                        phoneNumber: response.data.phone ? formatPhoneNumber(response.data.phone) : '',
-                        address: response.data.address || '',
-                        dateOfBirth: response.data.date_of_birth ? response.data.date_of_birth : '',
-                        gender: response.data.gender || ''
-                    };
-                    setInitialData(userData);
-                    reset(userData);
-                } else {
-                    throw new Error('Данные пользователя не получены');
-                }
-            } catch (err) {
-                console.error('Ошибка при получении данных:', err);
-                setError('api', { type: 'manual', message: 'Не удалось загрузить данные' });
-                onLogout();
+    const successMessages = [
+        'Красивые данные, мы их сохраним!',
+        'Спасибо за данные, добрый человек!',
+        'Упс.. Кажется, мы сохранили ваши данные',
+        'Ты молодец, отличные данные!'
+    ];
+
+    const fetchUser = useCallback(async () => {
+        try {
+            const response = await api.get('/user/me');
+            console.log('API response:', response.data);
+            if (response.data && response.data.email) {
+                const userData = {
+                    name: response.data.name || '',
+                    email: response.data.email || '',
+                    phoneNumber: response.data.phone ? formatPhoneNumber(response.data.phone) : '',
+                    address: response.data.address || '',
+                    dateOfBirth: response.data.date_of_birth ? response.data.date_of_birth : '',
+                    gender: response.data.gender || '',
+                    avatar: response.data.avatar || '' // Сохраняем исходную аватарку
+                };
+                setInitialData(userData);
+                reset(userData);
+                setUser(response.data);
+            } else {
+                throw new Error('Данные пользователя не получены');
             }
-        };
-        fetchUser();
-    }, [reset, onLogout, setError]);
+        } catch (err) {
+            console.error('Ошибка при получении данных:', err);
+            setError('api', { type: 'manual', message: 'Не удалось загрузить данные' });
+            onLogout();
+        }
+    }, [reset, onLogout, setError, setUser]);
+
+    useEffect(() => {
+        if (!initialData) {
+            fetchUser();
+        }
+    }, [fetchUser, initialData]);
 
     const formatPhoneNumber = (value) => {
         if (!value) return '';
@@ -80,17 +95,25 @@ function EditProfile({ onLogout, setUser }) {
 
     const submit = async (data) => {
         try {
-            await api.post('/user/update', {
+            const updatedData = {
                 name: data.name || undefined,
                 email: data.email || undefined,
                 phoneNumber: data.phoneNumber ? data.phoneNumber.replace(/[^\d]/g, '') : undefined,
                 address: data.address || undefined,
                 dateOfBirth: data.dateOfBirth || undefined,
                 gender: data.gender || undefined,
-            });
+                avatar: user.avatar || undefined
+            };
+            console.log('Submit data:', updatedData);
+            await api.post('/user/update', updatedData);
             setInitialData(data);
             reset(data);
-            setUser((prev) => ({ ...prev, ...data }));
+            setUser({ ...user, ...data, avatar: user.avatar });
+            const randomMessage = successMessages[Math.floor(Math.random() * successMessages.length)];
+            setNotificationMessage(randomMessage);
+            setNotificationState('visible');
+            setTimeout(() => setNotificationState('hiding'), 3000);
+            setTimeout(() => setNotificationState('hidden'), 3500);
         } catch (err) {
             setError('api', {
                 type: 'manual',
@@ -100,7 +123,9 @@ function EditProfile({ onLogout, setUser }) {
     };
 
     const handleReset = () => {
-        reset(initialData);
+        console.log('Resetting form, restoring avatar:', initialData.avatar);
+        reset(initialData); // Сбрасываем поля формы
+        setUser({ ...user, ...initialData, avatar: initialData.avatar }); // Восстанавливаем исходную аватарку
     };
 
     const errorMessages = Object.values(errors)
@@ -112,100 +137,108 @@ function EditProfile({ onLogout, setUser }) {
     }
 
     return (
-        <form onSubmit={handleSubmit(submit)}>
-            <h2>Редактировать профиль</h2>
-            <div className="update-container">
-                <div className="input radio" style={{ background: 'none', padding: '0' }}>
-                    <div style={{ display: 'flex', gap: '30px' }}>
-                        <label className="custom-radio">
-                            <input
-                                type="radio"
-                                value="MALE"
-                                {...register('gender', { validate: validateGender })}
-                            />
-                            Мужчина
-                            <span className="radio-mark"></span>
-                        </label>
-                        <label className="custom-radio">
-                            <input
-                                type="radio"
-                                value="FEMALE"
-                                {...register('gender', { validate: validateGender })}
-                            />
-                            Женщина
-                            <span className="radio-mark"></span>
-                        </label>
+        <div style={{ position: 'relative' }}>
+            <form onSubmit={handleSubmit(submit)}>
+                <h2>Редактировать профиль</h2>
+                <div className="update-container">
+                    <div className="input radio" style={{ background: 'none', padding: '0' }}>
+                        <div style={{ display: 'flex', gap: '30px' }}>
+                            <label className="custom-radio">
+                                <input
+                                    type="radio"
+                                    value="MALE"
+                                    {...register('gender', { validate: validateGender })}
+                                />
+                                Мужчина
+                                <span className="radio-mark"></span>
+                            </label>
+                            <label className="custom-radio">
+                                <input
+                                    type="radio"
+                                    value="FEMALE"
+                                    {...register('gender', { validate: validateGender })}
+                                />
+                                Женщина
+                                <span className="radio-mark"></span>
+                            </label>
+                        </div>
                     </div>
-                </div>
-                <div className="input">
-                    <label htmlFor="name">Фамилия и имя</label>
-                    <input
-                        type="text"
-                        id="name"
-                        {...register('name', {
-                            minLength: {
-                                value: 3,
-                                message: 'Имя должно содержать не менее 3 символов'
-                            },
-                        })}
-                    />
-                </div>
-                <div className="input">
-                    <label htmlFor="email">Email</label>
-                    <input
-                        type="email"
-                        id="email"
-                        {...register('email', {
-                            required: 'Пожалуйста, заполните поле с почтой',
-                            pattern: {
-                                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                                message: 'Вы указали почту неправильного формата',
-                            },
-                        })}
-                    />
-                </div>
-                <div className="input">
-                    <label htmlFor="address">Адрес</label>
-                    <input
-                        type="text"
-                        id="address"
-                        {...register('address')}
-                    />
-                </div>
-                <div className="phone-date-container">
                     <div className="input">
-                        <label htmlFor="phoneNumber">Номер телефона</label>
+                        <label htmlFor="name">Фамилия и имя</label>
                         <input
                             type="text"
-                            id="phoneNumber"
-                            {...register('phoneNumber', { validate: validatePhoneNumber })}
-                            onChange={handlePhoneNumberChange}
+                            id="name"
+                            {...register('name', {
+                                minLength: {
+                                    value: 3,
+                                    message: 'Имя должно содержать не менее 3 символов'
+                                },
+                            })}
                         />
                     </div>
                     <div className="input">
-                        <label htmlFor="dateOfBirth">Дата рождения</label>
+                        <label htmlFor="email">Email</label>
                         <input
-                            type="date"
-                            id="dateOfBirth"
-                            {...register('dateOfBirth', { validate: validateDateOfBirth })}
+                            type="email"
+                            id="email"
+                            {...register('email', {
+                                required: 'Пожалуйста, заполните поле с почтой',
+                                pattern: {
+                                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                                    message: 'Вы указали почту неправильного формата',
+                                },
+                            })}
                         />
                     </div>
-                </div>
-            </div>
-            <div className="with-error">
-                <div className="button-container">
-                    <button type="submit" className="primary">Сохранить</button>
-                    <button type="button" className="secondary" onClick={handleReset}>Сбросить</button>
-                </div>
-                {errorMessages.length > 0 && (
-                    <div style={{ marginTop: '20px' }}>
-                        {errorMessages.map((error, index) => (
-                            <p style={{ color: '#FF725E', marginTop: '5px' }} key={index}>{error}</p>
-                        ))}
+                    <div className="input">
+                        <label htmlFor="address">Адрес</label>
+                        <input
+                            type="text"
+                            id="address"
+                            {...register('address')}
+                        />
                     </div>
-                )}
-            </div>
-        </form>
+                    <div className="phone-date-container">
+                        <div className="input">
+                            <label htmlFor="phoneNumber">Номер телефона</label>
+                            <input
+                                type="text"
+                                id="phoneNumber"
+                                {...register('phoneNumber', { validate: validatePhoneNumber })}
+                                onChange={handlePhoneNumberChange}
+                            />
+                        </div>
+                        <div className="input">
+                            <label htmlFor="dateOfBirth">Дата рождения</label>
+                            <input
+                                type="date"
+                                id="dateOfBirth"
+                                {...register('dateOfBirth', { validate: validateDateOfBirth })}
+                            />
+                        </div>
+                    </div>
+                </div>
+                <div className="with-error">
+                    <div className="button-container">
+                        <button type="submit" className="primary">Сохранить</button>
+                        <button type="button" className="secondary" onClick={handleReset}>Сбросить</button>
+                    </div>
+                    {errorMessages.length > 0 && (
+                        <div style={{ marginTop: '20px' }}>
+                            {errorMessages.map((error, index) => (
+                                <p style={{ color: '#FF725E', marginTop: '5px' }} key={index}>{error}</p>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </form>
+            {notificationState !== 'hidden' && (
+                <div className={`notification ${notificationState}`}>
+                    <img src={success} alt="notification"/>
+                    <span>{notificationMessage}</span>
+                </div>
+            )}
+        </div>
     );
 }
 

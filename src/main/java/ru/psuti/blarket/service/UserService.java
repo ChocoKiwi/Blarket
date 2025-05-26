@@ -1,6 +1,9 @@
 package ru.psuti.blarket.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -37,7 +40,19 @@ public class UserService {
         }
 
         if (updateDTO.getName() != null) user.setName(updateDTO.getName());
-        if (updateDTO.getEmail() != null) user.setEmail(updateDTO.getEmail());
+        if (updateDTO.getEmail() != null) {
+            user.setEmail(updateDTO.getEmail());
+            // Обновляем SecurityContext
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null) {
+                Authentication newAuth = new UsernamePasswordAuthenticationToken(
+                        updateDTO.getEmail(),
+                        auth.getCredentials(),
+                        auth.getAuthorities()
+                );
+                SecurityContextHolder.getContext().setAuthentication(newAuth);
+            }
+        }
         if (updateDTO.getGender() != null) user.setGender(updateDTO.getGender());
         if (updateDTO.getAddress() != null) user.setAddress(updateDTO.getAddress());
         if (updateDTO.getPhoneNumber() != null) user.setPhoneNumber(updateDTO.getPhoneNumber());

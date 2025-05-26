@@ -23,8 +23,8 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
-public class AuthController {
-    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+public class UserController {
+    private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -97,7 +97,7 @@ public class AuthController {
     }
 
     @PostMapping("/user/update")
-    public ResponseEntity<?> updateUser(@RequestBody UserUpdateDTO updateDTO, Authentication authentication) {
+    public ResponseEntity<?> updateUser(@RequestBody UserUpdateDTO updateDTO, Authentication authentication, HttpSession session) {
         if (authentication == null || authentication instanceof AnonymousAuthenticationToken) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Неавторизован"));
         }
@@ -105,6 +105,8 @@ public class AuthController {
         String email = authentication.getName();
         try {
             userService.updateUser(email, updateDTO);
+            // Обновляем сессию
+            session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
             return ResponseEntity.ok(Map.of("message", "Данные обновлены"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));

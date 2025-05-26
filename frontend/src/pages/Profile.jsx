@@ -3,8 +3,9 @@ import { Link, useLocation, useNavigate, Routes, Route } from 'react-router-dom'
 import api from '../api';
 import Header from '../components/Header';
 import EditProfile from '../components/EditProfile';
-import UserAvatar from '../assets/icons/user-avatar.svg'
+import UserAvatar from '../assets/icons/user-avatar.svg';
 import icons from "../assets/icons/icons";
+import CreateAnnouncement from "../components/CreateAnnouncement";
 
 const MyAds = () => <div>Мои объявления</div>;
 
@@ -14,6 +15,8 @@ function ProfileMenu({ user, handleLogout, handleAvatarChange }) {
         { path: '/profile/ads', name: 'Мои объявления', icon: 'bag' },
     ];
     const location = useLocation();
+
+    console.log('ProfileMenu user.avatar:', user?.avatar);
 
     return (
         <div className="profile-menu">
@@ -25,6 +28,7 @@ function ProfileMenu({ user, handleLogout, handleAvatarChange }) {
                         className="avatar"
                         onClick={() => document.getElementById('avatarInput').click()}
                         style={{ cursor: 'pointer' }}
+                        onError={() => console.error('Ошибка загрузки аватарки в ProfileMenu')}
                     />
                     <img
                         src={icons.editAvatar}
@@ -78,6 +82,7 @@ function Profile({ onLogout }) {
             try {
                 const response = await api.get('/user/me');
                 if (response.data) {
+                    console.log('Profile fetchUser response:', response.data);
                     setUser(response.data);
                 } else {
                     throw new Error('Данные пользователя не получены');
@@ -102,15 +107,10 @@ function Profile({ onLogout }) {
         if (file) {
             try {
                 const reader = new FileReader();
-                reader.onloadend = async () => {
+                reader.onloadend = () => {
                     const base64String = reader.result;
-                    try {
-                        await api.post('/user/update', { ...user, avatar: base64String });
-                        setUser({ ...user, avatar: base64String });
-                    } catch (err) {
-                        console.error('Ошибка при обновлении аватара:', err);
-                        setError('Не удалось обновить аватар');
-                    }
+                    console.log('Base64 avatar:', base64String);
+                    setUser({ ...user, avatar: base64String }); // Обновляем глобальное состояние
                 };
                 reader.readAsDataURL(file);
             } catch (err) {
@@ -119,14 +119,6 @@ function Profile({ onLogout }) {
             }
         }
     };
-
-    if (error) {
-        return <div>{error}</div>;
-    }
-
-    if (!user) {
-        return <div>Загрузка...</div>;
-    }
 
     const handleLogout = async () => {
         try {
@@ -140,14 +132,22 @@ function Profile({ onLogout }) {
         }
     };
 
+    if (error) {
+        return <div>{error}</div>;
+    }
+
+    if (!user) {
+        return <div>Загрузка...</div>;
+    }
+
     return (
         <div className="main-container">
-            <Header />
+            <Header user={user} setUser={setUser} />
             <div className="profile-content">
                 <Routes>
-                    <Route path="/ads" element={<MyAds />} />
-                    <Route path="/" element={<EditProfile setUser={setUser} onLogout={onLogout} />} />
-                    <Route path="/info" element={<EditProfile setUser={setUser} onLogout={onLogout} />} />
+                    <Route path="/" element={<EditProfile user={user} setUser={setUser} onLogout={onLogout} />} />
+                    <Route path="/info" element={<EditProfile user={user} setUser={setUser} onLogout={onLogout} />} />
+                    <Route path="/ads" element={<CreateAnnouncement user={user} setUser={setUser} onLogout={onLogout} />} />
                 </Routes>
             </div>
             <ProfileMenu user={user} handleLogout={handleLogout} handleAvatarChange={handleAvatarChange} />
