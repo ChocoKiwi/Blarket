@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import api from '../api';
 import success from "../assets/icons/sucsses.svg";
+import { useNavigate } from 'react-router-dom';
 
 function EditProfile({ onLogout, setUser, user }) {
     const { register, handleSubmit, formState: { errors }, reset, setError, setValue, watch } = useForm({ mode: 'onChange' });
@@ -9,6 +10,7 @@ function EditProfile({ onLogout, setUser, user }) {
     const [notificationMessage, setNotificationMessage] = useState('');
     const [notificationState, setNotificationState] = useState('hidden');
     const phoneNumber = watch('phoneNumber', '');
+    const navigate = useNavigate();
 
     const successMessages = [
         'Красивые данные, мы их сохраним!',
@@ -19,81 +21,73 @@ function EditProfile({ onLogout, setUser, user }) {
 
     const fetchUser = useCallback(async () => {
         try {
-            const response = await api.get('/user/me');
-            console.log('API response:', response.data);
-            if (response.data && response.data.email) {
+            const { data } = await api.get('/user/me', { withCredentials: true });
+            if (data?.email) {
                 const userData = {
-                    name: response.data.name || '',
-                    email: response.data.email || '',
-                    phoneNumber: response.data.phone ? formatPhoneNumber(response.data.phone) : '',
-                    address: response.data.address || '',
-                    dateOfBirth: response.data.date_of_birth ? response.data.date_of_birth : '',
-                    gender: response.data.gender || '',
-                    avatar: response.data.avatar || '' // Сохраняем исходную аватарку
+                    name: data.name || '',
+                    email: data.email || '',
+                    phoneNumber: data.phone ? formatPhoneNumber(data.phone) : '',
+                    address: data.address || '',
+                    dateOfBirth: data.date_of_birth || '',
+                    gender: data.gender || '',
+                    avatar: data.avatar || ''
                 };
                 setInitialData(userData);
                 reset(userData);
-                setUser(response.data);
+                setUser(data);
             } else {
                 throw new Error('Данные пользователя не получены');
             }
         } catch (err) {
             console.error('Ошибка при получении данных:', err);
-            setError('api', { type: 'manual', message: 'Не удалось загрузить данные' });
-            onLogout();
+            setError('api', { message: 'Не удалось загрузить данные' });
+            if (err.response?.status === 401) {
+                onLogout();
+                navigate('/login');
+            }
         }
-    }, [reset, onLogout, setError, setUser]);
+    }, [reset, onLogout, setError, setUser, navigate]);
 
     useEffect(() => {
-        if (!initialData) {
-            fetchUser();
-        }
+        if (!initialData) fetchUser();
     }, [fetchUser, initialData]);
 
-    const formatPhoneNumber = (value) => {
+    const formatPhoneNumber = value => {
         if (!value) return '';
         const onlyDigits = value.replace(/[^\d]/g, '');
         if (onlyDigits.length === 0) return '+7 ';
         let formatted = '+7 ';
-        if (onlyDigits.length > 1) {
-            formatted += onlyDigits.slice(1, 4);
-        }
-        if (onlyDigits.length > 4) {
-            formatted += ' ' + onlyDigits.slice(4, 7);
-        }
-        if (onlyDigits.length > 7) {
-            formatted += '-' + onlyDigits.slice(7, 9);
-        }
-        if (onlyDigits.length > 9) {
-            formatted += '-' + onlyDigits.slice(9, 11);
-        }
+        if (onlyDigits.length > 1) formatted += onlyDigits.slice(1, 4);
+        if (onlyDigits.length > 4) formatted += ' ' + onlyDigits.slice(4, 7);
+        if (onlyDigits.length > 7) formatted += '-' + onlyDigits.slice(7, 9);
+        if (onlyDigits.length > 9) formatted += '-' + onlyDigits.slice(9, 11);
         return formatted;
     };
 
-    const handlePhoneNumberChange = (e) => {
+    const handlePhoneNumberChange = e => {
         const formatted = formatPhoneNumber(e.target.value);
         setValue('phoneNumber', formatted, { shouldValidate: true });
     };
 
-    const validatePhoneNumber = (value) => {
+    const validatePhoneNumber = value => {
         if (!value) return true;
         const digits = value.replace(/[^\d]/g, '');
         return digits.length === 11 || 'Номер телефона должен содержать 11 цифр';
     };
 
-    const validateDateOfBirth = (value) => {
+    const validateDateOfBirth = value => {
         if (!value) return true;
         const date = new Date(value);
         const today = new Date();
         return date <= today || 'Дата рождения не может быть в будущем';
     };
 
-    const validateGender = (value) => {
+    const validateGender = value => {
         if (!value) return true;
         return ['MALE', 'FEMALE'].includes(value) || 'Пол должен быть MALE или FEMALE';
     };
 
-    const submit = async (data) => {
+    const submit = async data => {
         try {
             const updatedData = {
                 name: data.name || undefined,
@@ -104,37 +98,35 @@ function EditProfile({ onLogout, setUser, user }) {
                 gender: data.gender || undefined,
                 avatar: user.avatar || undefined
             };
-            console.log('Submit data:', updatedData);
-            await api.post('/user/update', updatedData);
+            await api.post('/user/update', updatedData, { withCredentials: true });
+            await fetchUser(); // Синхронизируем данные и сессию
             setInitialData(data);
             reset(data);
-            setUser({ ...user, ...data, avatar: user.avatar });
             const randomMessage = successMessages[Math.floor(Math.random() * successMessages.length)];
             setNotificationMessage(randomMessage);
             setNotificationState('visible');
             setTimeout(() => setNotificationState('hiding'), 3000);
             setTimeout(() => setNotificationState('hidden'), 3500);
         } catch (err) {
-            setError('api', {
-                type: 'manual',
-                message: err.response?.data?.message || 'Ошибка при обновлении данных',
-            });
+            console.error('Ошибка обновления:', err);
+            setError('api', { message: err.response?.data?.message || 'Ошибка при обновлении данных' });
+            if (err.response?.status === 401) {
+                onLogout();
+                navigate('/login');
+            }
         }
     };
 
     const handleReset = () => {
-        console.log('Resetting form, restoring avatar:', initialData.avatar);
-        reset(initialData); // Сбрасываем поля формы
-        setUser({ ...user, ...initialData, avatar: initialData.avatar }); // Восстанавливаем исходную аватарку
+        reset(initialData);
+        setUser({ ...user, ...initialData, avatar: initialData.avatar });
     };
 
     const errorMessages = Object.values(errors)
-        .map((error) => error.message)
+        .map(error => error.message)
         .filter(Boolean);
 
-    if (!initialData) {
-        return <div>Загрузка...</div>;
-    }
+    if (!initialData) return <div>Загрузка...</div>;
 
     return (
         <div style={{ position: 'relative' }}>
@@ -172,7 +164,7 @@ function EditProfile({ onLogout, setUser, user }) {
                                 minLength: {
                                     value: 3,
                                     message: 'Имя должно содержать не менее 3 символов'
-                                },
+                                }
                             })}
                         />
                     </div>
@@ -185,18 +177,14 @@ function EditProfile({ onLogout, setUser, user }) {
                                 required: 'Пожалуйста, заполните поле с почтой',
                                 pattern: {
                                     value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                                    message: 'Вы указали почту неправильного формата',
-                                },
+                                    message: 'Вы указали почту неправильного формата'
+                                }
                             })}
                         />
                     </div>
                     <div className="input">
                         <label htmlFor="address">Адрес</label>
-                        <input
-                            type="text"
-                            id="address"
-                            {...register('address')}
-                        />
+                        <input type="text" id="address" {...register('address')} />
                     </div>
                     <div className="phone-date-container">
                         <div className="input">
@@ -234,7 +222,7 @@ function EditProfile({ onLogout, setUser, user }) {
             </form>
             {notificationState !== 'hidden' && (
                 <div className={`notification ${notificationState}`}>
-                    <img src={success} alt="notification"/>
+                    <img src={success} alt="notification" />
                     <span>{notificationMessage}</span>
                 </div>
             )}

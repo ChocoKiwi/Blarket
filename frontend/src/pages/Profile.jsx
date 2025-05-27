@@ -16,34 +16,37 @@ function ProfileMenu({ user, handleLogout, handleAvatarChange }) {
         { path: '/profile/ads', name: 'Мои объявления', icon: 'bag' },
     ];
     const location = useLocation();
-
-    console.log('ProfileMenu user.avatar:', user?.avatar);
+    const isInfoPage = location.pathname === '/profile/info';
 
     return (
         <div className="profile-menu">
             <div className="avatar-text-container">
-                <div className="avatar-container">
+                <div className={`avatar-container ${isInfoPage ? 'editable' : ''}`}>
                     <img
                         src={user.avatar || UserAvatar}
                         alt="Avatar"
                         className="avatar"
-                        onClick={() => document.getElementById('avatarInput').click()}
-                        style={{ cursor: 'pointer' }}
+                        onClick={isInfoPage ? () => document.getElementById('avatarInput').click() : null}
+                        style={{ cursor: isInfoPage ? 'pointer' : 'default' }}
                         onError={() => console.error('Ошибка загрузки аватарки в ProfileMenu')}
                     />
-                    <img
-                        src={icons.editAvatar}
-                        alt="Edit Avatar"
-                        className="edit-avatar-icon"
-                        onClick={() => document.getElementById('avatarInput').click()}
-                    />
-                    <input
-                        type="file"
-                        id="avatarInput"
-                        accept="image/*"
-                        style={{ display: 'none' }}
-                        onChange={handleAvatarChange}
-                    />
+                    {isInfoPage && (
+                        <>
+                            <img
+                                src={icons.editAvatar}
+                                alt="Edit Avatar"
+                                className="edit-avatar-icon"
+                                onClick={() => document.getElementById('avatarInput').click()}
+                            />
+                            <input
+                                type="file"
+                                id="avatarInput"
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                                onChange={handleAvatarChange}
+                            />
+                        </>
+                    )}
                 </div>
                 <div className="username-container">
                     <p className="name">{user.name}</p>
@@ -55,20 +58,24 @@ function ProfileMenu({ user, handleLogout, handleAvatarChange }) {
                     <Link
                         key={path}
                         to={path}
-                        className={`nav-link ${location.pathname === path ? 'active' : ''}`}
+                        className={`nav-link ${location.pathname.startsWith(path) ? 'active' : ''}`}
                     >
                         {icons[icon]({ className: `menu-icon icon-${icon}` })}
                         {name}
                     </Link>
                 ))}
-                <a href="#" className="nav-link" onClick={(e) => {
-                    e.preventDefault();
-                    handleLogout();
-                }}>
+                <a href="#" className="nav-link" onClick={e => { e.preventDefault(); handleLogout(); }}>
                     {icons['exit']({ className: 'menu-icon icon-exit' })}
                     Выйти из аккаунта
                 </a>
             </nav>
+            {location.pathname === '/profile/ads' && (
+                <div className="button-container">
+                    <Link to="/profile/ads/create" className="button">
+                        Новое объявление
+                    </Link>
+                </div>
+            )}
         </div>
     );
 }
@@ -103,7 +110,7 @@ function Profile({ onLogout }) {
         fetchUser();
     }, [onLogout, navigate]);
 
-    const handleAvatarChange = async (event) => {
+    const handleAvatarChange = async event => {
         const file = event.target.files[0];
         if (file) {
             try {
@@ -111,7 +118,7 @@ function Profile({ onLogout }) {
                 reader.onloadend = () => {
                     const base64String = reader.result;
                     console.log('Base64 avatar:', base64String);
-                    setUser({ ...user, avatar: base64String }); // Обновляем глобальное состояние
+                    setUser({ ...user, avatar: base64String });
                 };
                 reader.readAsDataURL(file);
             } catch (err) {
@@ -133,13 +140,8 @@ function Profile({ onLogout }) {
         }
     };
 
-    if (error) {
-        return <div>{error}</div>;
-    }
-
-    if (!user) {
-        return <div>Загрузка...</div>;
-    }
+    if (error) return <div>{error}</div>;
+    if (!user) return <div>Загрузка...</div>;
 
     return (
         <div className="main-container">

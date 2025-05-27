@@ -1,33 +1,38 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import panaImage from '../assets/img/pana.svg';
 
 function Login({ onLogin }) {
-    const { register, handleSubmit, formState: { errors } } = useForm();
-    const [apiError, setApiError] = React.useState('');
+    const { register, handleSubmit, formState: { errors }, watch } = useForm();
+    const [apiError, setApiError] = useState('');
     const navigate = useNavigate();
 
-    const onSubmit = async (data) => {
+    // Отслеживаем изменения в инпутах для сброса apiError
+    watch(() => {
+        if (apiError) setApiError('');
+    });
+
+    const onSubmit = async data => {
         try {
             await api.post('/login', { email: data.email, password: data.password });
             setApiError('');
             onLogin();
             navigate('/profile');
-        } catch (err) {
+        } catch {
             setApiError('Похоже, email или пароль неверные. Попробуйте ещё раз!');
         }
     };
 
-    const getFirstError = () => {
+    const getErrorMessage = () => {
         if (errors.email?.type === 'required') return 'Пожалуйста, укажите ваш email.';
         if (errors.email?.type === 'pattern') return 'Кажется, email введён некорректно. Проверьте формат!';
         if (errors.password?.type === 'required') return 'Не забудьте ввести пароль!';
         if (errors.password?.type === 'minLength') return 'Пароль должен содержать минимум 8 символов.';
         if (errors.password?.type === 'latin') return 'Пароль должен содержать хотя бы одну латинскую букву.';
         if (errors.password?.type === 'special') return 'Пароль должен содержать хотя бы один специальный символ (например, !@#$).';
-        return '';
+        return apiError; // Показываем apiError, если нет валидационных ошибок
     };
 
     return (
@@ -60,8 +65,8 @@ function Login({ onLogin }) {
                                         required: true,
                                         minLength: 8,
                                         validate: {
-                                            latin: value => /[a-zA-Z]/.test(value) || 'latin',
-                                            special: value => /[!@#$%^&*(),.?":{}|<>]/.test(value) || 'special'
+                                            latin: value => /[a-zA-Z]/.test(value),
+                                            special: value => /[!@#$%^&*(),.?":{}|<>]/.test(value)
                                         }
                                     })}
                                 />
@@ -74,10 +79,10 @@ function Login({ onLogin }) {
                                     Регистрация
                                 </button>
                             </div>
-                            {(getFirstError() || apiError) && (
-                                <p style={{color: '#FF725E', marginTop: '20px'}}>
-                                    {getFirstError() || apiError}
-                                </p>
+                            {(Object.keys(errors).length > 0 || apiError) && (
+                                <div className="error-block">
+                                    <p className="error-text">{getErrorMessage()}</p>
+                                </div>
                             )}
                         </div>
                     </form>

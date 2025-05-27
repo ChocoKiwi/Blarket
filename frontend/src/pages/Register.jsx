@@ -32,7 +32,7 @@ function Register({ onRegister }) {
         }
     };
 
-    const getFirstError = () => {
+    const getErrorMessage = () => {
         if (errors.name?.type === 'required') return 'Пожалуйста, укажите ваше имя и фамилию.';
         if (errors.name?.type === 'minLength') return 'Имя должно содержать минимум 2 символа.';
         if (errors.email?.type === 'required') return 'Пожалуйста, укажите ваш email.';
@@ -132,10 +132,12 @@ function Register({ onRegister }) {
                                 </div>
                             </div>
                             {success && <p style={{ color: 'green', marginTop: '5px' }}>{success}</p>}
-                            {(getFirstError() || apiError) && (
-                                <p style={{ color: '#FF725E', marginTop: '20px' }}>
-                                    {getFirstError() || apiError}
-                                </p>
+                            {Object.keys(errors).length > 0 && (
+                                <div className="error-block">
+                                    <p className="error-text">
+                                        {getErrorMessage(errors)}
+                                    </p>
+                                </div>
                             )}
                         </div>
                     </form>

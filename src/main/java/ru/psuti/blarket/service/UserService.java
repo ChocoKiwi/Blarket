@@ -21,7 +21,7 @@ public class UserService {
 
     public void registerUser(UserRegistrationDTO userDTO) {
         if (userRepository.existsByEmail(userDTO.getEmail())) {
-            throw new IllegalArgumentException("Email уже зарегистрирован");
+            throw new IllegalArgumentException("Пользователь с такой почтой уже зарегестрирован уже зарегистрирован");
         }
         User user = User.builder()
                 .name(userDTO.getName()) // Изменено с getUsername() на getName()

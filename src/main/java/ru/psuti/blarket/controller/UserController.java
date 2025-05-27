@@ -11,6 +11,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.*;
 import ru.psuti.blarket.dto.UserLoginDTO;
 import ru.psuti.blarket.dto.UserRegistrationDTO;
@@ -34,6 +36,9 @@ public class UserController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private UserDetailsService userDetailsService;
 
     @PostMapping("/registration")
     public ResponseEntity<?> register(@RequestBody UserRegistrationDTO userDTO) {
@@ -97,16 +102,18 @@ public class UserController {
     }
 
     @PostMapping("/user/update")
-    public ResponseEntity<?> updateUser(@RequestBody UserUpdateDTO updateDTO, Authentication authentication, HttpSession session) {
+    public ResponseEntity<?> updateUser(@RequestBody UserUpdateDTO updateDTO, Authentication authentication) {
         if (authentication == null || authentication instanceof AnonymousAuthenticationToken) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Неавторизован"));
         }
-
         String email = authentication.getName();
         try {
             userService.updateUser(email, updateDTO);
-            // Обновляем сессию
-            session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
+            // Обновляем Authentication объект
+            UserDetails updatedUserDetails = userDetailsService.loadUserByUsername(email);
+            Authentication newAuth = new UsernamePasswordAuthenticationToken(
+                    updatedUserDetails, authentication.getCredentials(), updatedUserDetails.getAuthorities());
+            SecurityContextHolder.getContext().setAuthentication(newAuth);
             return ResponseEntity.ok(Map.of("message", "Данные обновлены"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
