@@ -1,10 +1,10 @@
 package ru.psuti.blarket.model;
 
+import java.time.LocalDate;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-
+import org.springframework.security.core.GrantedAuthority;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -15,19 +15,33 @@ import java.util.Collections;
 @AllArgsConstructor
 @Builder
 public class User implements UserDetails {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String username;
+    @Column(nullable = false) // Переименовано из username в name
+    private String name;
 
     @Column(nullable = false)
     private String password;
 
     @Column(nullable = false, unique = true)
-    private String email; // Почта для аутентификации (например, "stenstafford@yahoo.com")
+    private String email;
+
+    @Column(nullable = true)
+    private String phoneNumber;
+
+    @Column(nullable = true)
+    private String address;
+
+    @Column(nullable = true)
+    private LocalDate dateOfBirth;
+
+    @Column(nullable = true)
+    private String gender;
+
+    @Column(nullable = true, length = 10485760) // Увеличенный размер для Base64
+    private String avatar; // Храним изображение как Base64 строку
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -36,7 +50,7 @@ public class User implements UserDetails {
 
     @Override
     public String getUsername() {
-        return username; // Возвращает имя пользователя
+        return email; // Spring Security использует email как идентификатор
     }
 
     @Override

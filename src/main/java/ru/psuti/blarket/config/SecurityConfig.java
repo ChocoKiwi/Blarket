@@ -29,6 +29,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
                 )
+                .sessionManagement(session -> session
+                        .sessionFixation().migrateSession()
+                        .maximumSessions(1)
+                        .expiredUrl("/api/login")
+                )
                 .formLogin(form -> form.disable())
                 .logout(logout -> logout
                         .logoutUrl("/api/logout")
