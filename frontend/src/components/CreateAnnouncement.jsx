@@ -4,6 +4,9 @@ import { useForm } from 'react-hook-form';
 import api from '../api';
 import icons from '../assets/icons/icons';
 
+/**
+ * Компонент для создания нового объявления.
+ */
 const CreateAnnouncement = () => {
     const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm();
     const [imagePreviews, setImagePreviews] = useState([null, null, null]);
@@ -68,8 +71,8 @@ const CreateAnnouncement = () => {
         const formData = {
             title: data.title,
             description: data.description,
-            price: parseFloat(data.price),
-            quantity: parseInt(data.quantity),
+            price: parseFloat(unformatInput(data.price)),
+            quantity: parseInt(unformatInput(data.quantity)),
             address: data.address,
             itemCondition: data.itemCondition,
             imageUrls: imagePreviews.filter(url => url !== null),
@@ -79,9 +82,11 @@ const CreateAnnouncement = () => {
             await api.post('/announcements', formData, { withCredentials: true });
             reset();
             setImagePreviews([null, null, null]);
+            setFormattedPrice('');
+            setFormattedQuantity('');
             navigate('/profile/ads');
         } catch (error) {
-            console.error(error);
+            console.error('Ошибка при создании объявления:', error);
         }
     };
 
@@ -91,12 +96,14 @@ const CreateAnnouncement = () => {
         if (errors.itemCondition) return 'Выберите состояние.';
         if (errors.price) return 'Укажите цену.';
         if (errors.quantity) return 'Укажите количество.';
-        return 'Проверьте данные.';
+        return 'Проверьте введенные данные.';
     };
 
     const handleReset = () => {
         reset();
         setImagePreviews([null, null, null]);
+        setFormattedPrice('');
+        setFormattedQuantity('');
     };
 
     return (
@@ -125,7 +132,7 @@ const CreateAnnouncement = () => {
                                             <img src={imagePreviews[0]} alt="Preview 1" className="preview-image"/>
                                         ) : (
                                             <div className="upload-placeholder first">
-                                                <img src={icons.camera}/>
+                                                <img src={icons.camera} alt="Camera"/>
                                             </div>
                                         )}
                                     </label>
@@ -151,7 +158,7 @@ const CreateAnnouncement = () => {
                                                     <img src={imagePreviews[index]} alt={`Preview ${index + 1}`} className="preview-image"/>
                                                 ) : (
                                                     <div className="upload-placeholder">
-                                                        <img src={icons.camera}/>
+                                                        <img src={icons.camera} alt="Camera"/>
                                                     </div>
                                                 )}
                                             </label>
@@ -161,7 +168,7 @@ const CreateAnnouncement = () => {
                             </div>
                         </div>
                         <div className="other-container">
-                            <div className="input condtitions">
+                            <div className="input conditions">
                                 <div className="phone-date-container">
                                     {['NEW', 'USED', 'BUYSELL'].map(condition => (
                                         <div
@@ -196,11 +203,11 @@ const CreateAnnouncement = () => {
                                         value={formattedPrice}
                                         onChange={e => {
                                             const raw = unformatInput(e.target.value);
-                                            setValue('price', raw);
-                                            setFormattedPrice(raw);
+                                            setValue('price', raw, { shouldValidate: true });
+                                            setFormattedPrice(formatPriceInput(raw));
                                         }}
                                         onBlur={() => {
-                                            setFormattedPrice(formatPriceInput(formattedPrice));
+                                            setFormattedPrice(formatPriceInput(unformatInput(formattedPrice)));
                                         }}
                                         onFocus={() => {
                                             const raw = unformatInput(formattedPrice);
@@ -215,11 +222,11 @@ const CreateAnnouncement = () => {
                                         value={formattedQuantity}
                                         onChange={e => {
                                             const raw = unformatInput(e.target.value);
-                                            setValue('quantity', raw);
-                                            setFormattedQuantity(raw);
+                                            setValue('quantity', raw, { shouldValidate: true });
+                                            setFormattedQuantity(formatQuantityInput(raw));
                                         }}
                                         onBlur={() => {
-                                            setFormattedQuantity(formatQuantityInput(formattedQuantity));
+                                            setFormattedQuantity(formatQuantityInput(unformatInput(formattedQuantity)));
                                         }}
                                         onFocus={() => {
                                             const raw = unformatInput(formattedQuantity);

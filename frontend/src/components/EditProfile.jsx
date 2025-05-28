@@ -98,10 +98,15 @@ function EditProfile({ onLogout, setUser, user }) {
                 gender: data.gender || undefined,
                 avatar: user.avatar || undefined
             };
-            await api.post('/user/update', updatedData, { withCredentials: true });
-            await fetchUser(); // Синхронизируем данные и сессию
+            const response = await api.post('/user/update', updatedData, { withCredentials: true });
+            // Обновляем данные пользователя на клиенте
+            await fetchUser();
             setInitialData(data);
             reset(data);
+            // Если email изменился, обновляем локальные данные пользователя
+            if (data.email && data.email !== initialData.email) {
+                setUser({ ...user, email: response.data.newEmail });
+            }
             const randomMessage = successMessages[Math.floor(Math.random() * successMessages.length)];
             setNotificationMessage(randomMessage);
             setNotificationState('visible');

@@ -4,19 +4,24 @@ import lombok.Data;
 import ru.psuti.blarket.model.Announcement;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * DTO для создания нового объявления.
+ * DTO для представления данных объявления.
  */
 @Data
-public class CreateAnnouncementDTO {
+public class AnnouncementDTO {
+    private Long id;
     private String title;
     private String description;
     private BigDecimal price;
     private List<String> imageUrls;
     private String address;
     private Integer quantity;
-    private Announcement.Condition itemCondition;
-    private List<String> deliveryOptions;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private Integer views;
+    private Announcement.Condition condition;
+    private Float rating;
 }

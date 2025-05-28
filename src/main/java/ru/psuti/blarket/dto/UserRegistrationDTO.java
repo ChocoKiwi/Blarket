@@ -5,12 +5,15 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+/**
+ * DTO для регистрации нового пользователя.
+ */
 @Data
 public class UserRegistrationDTO {
 
     @NotBlank(message = "Имя обязательно")
     @Size(min = 3, max = 50, message = "Имя должно быть от 3 до 50 символов")
-    private String name; // Переименовано из username
+    private String name;
 
     @NotBlank(message = "Пароль обязателен")
     @Size(min = 6, message = "Пароль должен быть не менее 6 символов")

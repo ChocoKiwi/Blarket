@@ -1,13 +1,20 @@
 package ru.psuti.blarket.model;
 
-import java.time.LocalDate;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
+/**
+ * Сущность, представляющая пользователя в системе.
+ */
 @Entity
 @Table(name = "users")
 @Data
@@ -15,11 +22,12 @@ import java.util.Collections;
 @AllArgsConstructor
 @Builder
 public class User implements UserDetails {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false) // Переименовано из username в name
+    @Column(nullable = false)
     private String name;
 
     @Column(nullable = false)
@@ -28,20 +36,21 @@ public class User implements UserDetails {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = true)
     private String phoneNumber;
 
-    @Column(nullable = true)
     private String address;
 
-    @Column(nullable = true)
     private LocalDate dateOfBirth;
 
-    @Column(nullable = true)
     private String gender;
 
-    @Column(nullable = true, length = 10485760) // Увеличенный размер для Base64
-    private String avatar; // Храним изображение как Base64 строку
+    @Column(length = 10485760)
+    private String avatar;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonManagedReference
+    @Builder.Default
+    private List<Announcement> announcements = new ArrayList<>();
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -50,7 +59,7 @@ public class User implements UserDetails {
 
     @Override
     public String getUsername() {
-        return email; // Spring Security использует email как идентификатор
+        return email;
     }
 
     @Override

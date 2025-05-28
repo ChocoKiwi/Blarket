@@ -1,6 +1,9 @@
 package ru.psuti.blarket.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -9,53 +12,90 @@ import ru.psuti.blarket.dto.UpdateAnnouncementDTO;
 import ru.psuti.blarket.model.Announcement;
 import ru.psuti.blarket.model.User;
 import ru.psuti.blarket.service.AnnouncementService;
-import ru.psuti.blarket.repository.AnnouncementRepository;
 
-import java.util.List;
+import java.util.Map;
 
+/**
+ * Контроллер для управления объявлениями (создание, обновление, удаление, получение).
+ */
 @RestController
 @RequestMapping("/api/announcements")
+@RequiredArgsConstructor
 public class AnnouncementController {
 
-    @Autowired
-    private AnnouncementService announcementService;
+    private static final Logger LOGGER = LoggerFactory.getLogger(AnnouncementController.class);
+    private static final String ERROR_UNAUTHORIZED = "Неавторизован";
 
-    @Autowired
-    private AnnouncementRepository announcementRepository;
+    private final AnnouncementService announcementService;
 
+    /**
+     * Создает новое объявление.
+     */
     @PostMapping
-    public ResponseEntity<Announcement> createAnnouncement(@RequestBody CreateAnnouncementDTO dto, @AuthenticationPrincipal User user) {
+    public ResponseEntity<?> createAnnouncement(@RequestBody CreateAnnouncementDTO dto, @AuthenticationPrincipal User user) {
         if (user == null) {
-            return ResponseEntity.status(401).body(null);
+            LOGGER.warn("Неавторизованный доступ к созданию объявления");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
-        Announcement announcement = announcementService.createAnnouncement(dto, user.getId());
-        return ResponseEntity.ok(announcement);
+        try {
+            Announcement announcement = announcementService.createAnnouncement(dto, user);
+            return ResponseEntity.status(HttpStatus.CREATED).body(announcement);
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при создании объявления: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
+    /**
+     * Обновляет существующее объявление.
+     */
     @PutMapping("/{id}")
-    public ResponseEntity<Announcement> updateAnnouncement(@PathVariable Long id, @RequestBody UpdateAnnouncementDTO dto, @AuthenticationPrincipal User user) {
+    public ResponseEntity<?> updateAnnouncement(@PathVariable Long id, @RequestBody UpdateAnnouncementDTO dto, @AuthenticationPrincipal User user) {
         if (user == null) {
-            return ResponseEntity.status(401).body(null);
+            LOGGER.warn("Неавторизованный доступ к обновлению объявления");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
-        Announcement announcement = announcementService.updateAnnouncement(id, dto, user.getId());
-        return ResponseEntity.ok(announcement);
+        try {
+            Announcement announcement = announcementService.updateAnnouncement(id, dto, user);
+            return ResponseEntity.ok(announcement);
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при обновлении объявления с ID {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
+    /**
+     * Удаляет объявление.
+     */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteAnnouncement(@PathVariable Long id, @AuthenticationPrincipal User user) {
+    public ResponseEntity<?> deleteAnnouncement(@PathVariable Long id, @AuthenticationPrincipal User user) {
         if (user == null) {
-            return ResponseEntity.status(401).build();
+            LOGGER.warn("Неавторизованный доступ к удалению объявления");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
-        announcementService.deleteAnnouncement(id, user.getId());
-        return ResponseEntity.noContent().build();
+        try {
+            announcementService.deleteAnnouncement(id, user);
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при удалении объявления с ID {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 
+    /**
+     * Получает список объявлений текущего пользователя.
+     */
     @GetMapping
-    public ResponseEntity<List<Announcement>> getAnnouncements(@AuthenticationPrincipal User user) {
+    public ResponseEntity<?> getAnnouncements(@AuthenticationPrincipal User user) {
         if (user == null) {
-            return ResponseEntity.status(401).body(null);
+            LOGGER.warn("Неавторизованный доступ к получению объявлений");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
-        List<Announcement> announcements = announcementRepository.findByUserId(user.getId());
-        return ResponseEntity.ok(announcements);
+        try {
+            return ResponseEntity.ok(announcementService.getAnnouncementsByUser(user));
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при получении объявлений: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Ошибка сервера"));
+        }
     }
 }

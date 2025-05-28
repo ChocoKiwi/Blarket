@@ -1,15 +1,16 @@
 package ru.psuti.blarket.model;
 
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.persistence.*;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Сущность, представляющая объявление в системе.
+ */
 @Data
 @Entity
 @Table(name = "announcements")
@@ -29,7 +30,7 @@ public class Announcement {
 
     private BigDecimal price;
 
-    @Column(nullable = true, length = 10485760)
+    @Column(length = 10485760)
     private String imageUrls;
 
     @Column(columnDefinition = "TEXT")
@@ -37,7 +38,10 @@ public class Announcement {
 
     private Integer quantity;
 
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    @JsonBackReference
+    private User user;
 
     private LocalDateTime createdAt;
 
@@ -52,6 +56,9 @@ public class Announcement {
 
     private Float rating;
 
+    /**
+     * Перечисление для состояния товара.
+     */
     public enum Condition {
         NEW, USED, BUYSELL
     }

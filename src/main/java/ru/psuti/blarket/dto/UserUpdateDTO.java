@@ -1,15 +1,19 @@
 package ru.psuti.blarket.dto;
 
-import java.time.LocalDate;
 import lombok.Data;
 
+import java.time.LocalDate;
+
+/**
+ * DTO для обновления данных пользователя.
+ */
 @Data
 public class UserUpdateDTO {
-    private String name; // Переименовано из username
+    private String name;
     private String email;
     private String gender;
     private String address;
     private String phoneNumber;
     private LocalDate dateOfBirth;
-    private String avatar; // Поле для Base64 строки изображения
+    private String avatar;
 }
