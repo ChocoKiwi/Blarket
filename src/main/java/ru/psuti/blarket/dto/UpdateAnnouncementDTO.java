@@ -1,3 +1,4 @@
+// UpdateAnnouncementDTO.java
 package ru.psuti.blarket.dto;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -20,6 +21,7 @@ public class UpdateAnnouncementDTO {
     private Integer quantity;
     private Announcement.Condition itemCondition;
     private List<String> deliveryOptions;
+    private Announcement.Status status; // Новое поле
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -42,6 +44,7 @@ public class UpdateAnnouncementDTO {
         dto.setDeliveryOptions(announcement.getDeliveryOptions() != null
                 ? announcement.getDeliveryOptions()
                 : Collections.emptyList());
+        dto.setStatus(announcement.getStatus());
         return dto;
     }
 }

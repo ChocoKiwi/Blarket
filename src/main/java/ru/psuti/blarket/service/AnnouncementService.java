@@ -1,3 +1,4 @@
+// AnnouncementService.java
 package ru.psuti.blarket.service;
 
 import ru.psuti.blarket.dto.AnnouncementDTO;
@@ -12,10 +13,11 @@ import java.util.List;
  * Сервис для управления объявлениями.
  */
 public interface AnnouncementService {
-    Announcement createAnnouncement(CreateAnnouncementDTO dto, User user);
-    Announcement updateAnnouncement(Long id, UpdateAnnouncementDTO dto, User user);
+    Announcement createAnnouncement(CreateAnnouncementDTO dto, User user, boolean isDraft);
+    Announcement updateAnnouncement(Long id, UpdateAnnouncementDTO dto, User user, boolean isDraft);
     void deleteAnnouncement(Long id, User user);
-    List<AnnouncementDTO> getAnnouncementsByUser(User user);
+    void archiveAnnouncement(Long id, User user); // Новый метод для архивирования
+    List<AnnouncementDTO> getAnnouncementsByUserAndStatus(User user, Announcement.Status status);
     Announcement getAnnouncementById(Long id, User user);
-    List<AnnouncementDTO> getAnnouncementsByCategory(Long categoryId); // Новый метод
+    List<AnnouncementDTO> getAnnouncementsByCategory(Long categoryId);
 }

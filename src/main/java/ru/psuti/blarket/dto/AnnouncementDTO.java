@@ -1,3 +1,4 @@
+// AnnouncementDTO.java
 package ru.psuti.blarket.dto;
 
 import lombok.Data;
@@ -24,6 +25,7 @@ public class AnnouncementDTO {
     private Integer views;
     private Announcement.Condition condition;
     private Float rating;
-    private Long categoryId; // Добавлено поле для категории
-    private String categoryName; // Для удобства возвращаем название категории
+    private Long categoryId;
+    private String categoryName;
+    private Announcement.Status status; // Новое поле
 }

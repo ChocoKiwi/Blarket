@@ -103,7 +103,7 @@ const CategorySelector = ({ isEditMode = false, announcementId = null }) => {
             <div className="category-container">
                 <div className="main-categories">
                     <h3>Основные категории</h3>
-                    <div className="category-list">
+                    <div className="category-list animate-slide-in">
                         {mainCategories.map(category => (
                             <div
                                 key={category.id}

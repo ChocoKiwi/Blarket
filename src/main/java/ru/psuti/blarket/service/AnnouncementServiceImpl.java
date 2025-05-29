@@ -1,3 +1,4 @@
+// AnnouncementServiceImpl.java
 package ru.psuti.blarket.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -14,7 +15,9 @@ import ru.psuti.blarket.model.User;
 import ru.psuti.blarket.repository.AnnouncementRepository;
 import ru.psuti.blarket.repository.CategoryRepository;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -28,13 +31,15 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     private static final String ERROR_NOT_AUTHORIZED = "Нет прав для изменения или удаления объявления";
     private static final String ERROR_IMAGE_URLS = "Ошибка преобразования imageUrls";
     private static final String ERROR_CATEGORY_NOT_FOUND = "Категория не найдена";
+    private static final BigDecimal BUSINESS_PRICE_THRESHOLD = new BigDecimal("100000");
+    private static final int BUSINESS_QUANTITY_THRESHOLD = 35;
 
     private final AnnouncementRepository announcementRepository;
     private final CategoryRepository categoryRepository;
     private final ObjectMapper objectMapper;
 
     @Override
-    public Announcement createAnnouncement(CreateAnnouncementDTO dto, User user) {
+    public Announcement createAnnouncement(CreateAnnouncementDTO dto, User user, boolean isDraft) {
         log.info("Создание объявления для пользователя с email: {}", user.getEmail());
 
         Category category = null;
@@ -54,6 +59,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                 .category(category)
                 .deliveryOptions(dto.getDeliveryOptions())
                 .createdAt(LocalDateTime.now())
+                .status(isDraft ? Announcement.Status.DRAFT : determineStatus(dto))
                 .build();
 
         Optional.ofNullable(dto.getImageUrls())
@@ -69,8 +75,17 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         return announcementRepository.save(announcement);
     }
 
+    private Announcement.Status determineStatus(CreateAnnouncementDTO dto) {
+        if (dto.getPrice() != null && dto.getPrice().compareTo(BUSINESS_PRICE_THRESHOLD) > 0 ||
+                dto.getItemCondition() == Announcement.Condition.BUYSELL ||
+                (dto.getQuantity() != null && dto.getQuantity() > BUSINESS_QUANTITY_THRESHOLD)) {
+            return Announcement.Status.BUSINESS;
+        }
+        return Announcement.Status.ACTIVE;
+    }
+
     @Override
-    public Announcement updateAnnouncement(Long id, UpdateAnnouncementDTO dto, User user) {
+    public Announcement updateAnnouncement(Long id, UpdateAnnouncementDTO dto, User user, boolean isDraft) {
         log.info("Обновление объявления с ID: {} для пользователя с email: {}", id, user.getEmail());
         Announcement announcement = announcementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException(ERROR_NOT_FOUND));
@@ -102,8 +117,18 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             announcement.setCategory(null);
         }
 
+        announcement.setStatus(isDraft ? Announcement.Status.DRAFT : determineStatus(dto));
         announcement.setUpdatedAt(LocalDateTime.now());
         return announcementRepository.save(announcement);
+    }
+
+    private Announcement.Status determineStatus(UpdateAnnouncementDTO dto) {
+        if (dto.getPrice() != null && dto.getPrice().compareTo(BUSINESS_PRICE_THRESHOLD) > 0 ||
+                dto.getItemCondition() == Announcement.Condition.BUYSELL ||
+                (dto.getQuantity() != null && dto.getQuantity() > BUSINESS_QUANTITY_THRESHOLD)) {
+            return Announcement.Status.BUSINESS;
+        }
+        return Announcement.Status.ACTIVE;
     }
 
     @Override
@@ -119,9 +144,32 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     }
 
     @Override
-    public List<AnnouncementDTO> getAnnouncementsByUser(User user) {
-        log.info("Получение объявлений для пользователя с email: {}", user.getEmail());
-        List<Announcement> announcements = announcementRepository.findByUser(user);
+    public void archiveAnnouncement(Long id, User user) {
+        log.info("Архивирование объявления с ID: {} для пользователя с email: {}", id, user.getEmail());
+        Announcement announcement = announcementRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException(ERROR_NOT_FOUND));
+        if (!announcement.getUser().getId().equals(user.getId())) {
+            log.warn("Попытка архивирования объявления с ID: {} пользователем без прав: {}", id, user.getEmail());
+            throw new RuntimeException(ERROR_NOT_AUTHORIZED);
+        }
+        announcement.setStatus(Announcement.Status.ARCHIVED);
+        announcement.setUpdatedAt(LocalDateTime.now());
+        announcementRepository.save(announcement);
+    }
+
+    @Override
+    public List<AnnouncementDTO> getAnnouncementsByUserAndStatus(User user, Announcement.Status status) {
+        log.info("Получение объявлений для пользователя с email: {} и статусом: {}", user.getEmail(), status);
+        List<Announcement> announcements;
+        if (status == null) {
+            // Поддержка множественных статусов через параметр запроса
+            String[] statuses = {"ACTIVE", "BUSINESS"};
+            announcements = announcementRepository.findByUserAndStatusIn(user, Arrays.stream(statuses)
+                    .map(Announcement.Status::valueOf)
+                    .collect(Collectors.toList()));
+        } else {
+            announcements = announcementRepository.findByUserAndStatus(user, status);
+        }
         return announcements.stream().map(announcement -> {
             AnnouncementDTO dto = new AnnouncementDTO();
             dto.setId(announcement.getId());
@@ -145,6 +193,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             dto.setRating(announcement.getRating());
             dto.setCategoryId(announcement.getCategory() != null ? announcement.getCategory().getId() : null);
             dto.setCategoryName(announcement.getCategory() != null ? announcement.getCategory().getName() : null);
+            dto.setStatus(announcement.getStatus());
             return dto;
         }).collect(Collectors.toList());
     }
@@ -188,6 +237,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             dto.setRating(announcement.getRating());
             dto.setCategoryId(announcement.getCategory() != null ? announcement.getCategory().getId() : null);
             dto.setCategoryName(announcement.getCategory() != null ? announcement.getCategory().getName() : null);
+            dto.setStatus(announcement.getStatus());
             return dto;
         }).collect(Collectors.toList());
     }

@@ -1,3 +1,4 @@
+// AnnouncementRepository.java
 package ru.psuti.blarket.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -33,4 +34,13 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, Long
             "INNER JOIN category_tree ct ON c.parent_id = ct.id) " +
             "SELECT a.* FROM announcements a WHERE a.category_id IN (SELECT id FROM category_tree)", nativeQuery = true)
     List<Announcement> findByCategoryIdOrSubCategories(Long categoryId);
+
+    /**
+     * Находит все объявления по пользователю и статусу.
+     *
+     * @param user пользователь
+     * @return список объявлений
+     */
+    List<Announcement> findByUserAndStatusIn(User user, List<Announcement.Status> statuses);
+    List<Announcement> findByUserAndStatus(User user, Announcement.Status status);
 }

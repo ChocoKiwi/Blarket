@@ -1,3 +1,4 @@
+// Announcement.java
 package ru.psuti.blarket.model;
 
 import jakarta.persistence.*;
@@ -33,6 +34,10 @@ public class Announcement {
     @Column(name = "type", columnDefinition = "VARCHAR(20)")
     private Condition condition;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", columnDefinition = "VARCHAR(20)")
+    private Status status; // Новое поле статуса
+
     @ManyToOne
     private Category category;
 
@@ -51,5 +56,9 @@ public class Announcement {
 
     public enum Condition {
         NEW, USED, BUYSELL
+    }
+
+    public enum Status {
+        ACTIVE, BUSINESS, DRAFT, ARCHIVED
     }
 }
