@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import api from '../api';
-import success from "../assets/icons/sucsses.svg";
+import successIcon from "../assets/icons/sucsses.svg";
 import { useNavigate } from 'react-router-dom';
 
 function EditProfile({ onLogout, setUser, user }) {
@@ -9,6 +9,8 @@ function EditProfile({ onLogout, setUser, user }) {
     const [initialData, setInitialData] = useState(null);
     const [notificationMessage, setNotificationMessage] = useState('');
     const [notificationState, setNotificationState] = useState('hidden');
+    const [apiError, setApiError] = useState(''); // Состояние для ошибки API
+    const [success, setSuccess] = useState(''); // Состояние для сообщения об успехе
     const phoneNumber = watch('phoneNumber', '');
     const navigate = useNavigate();
 
@@ -34,19 +36,19 @@ function EditProfile({ onLogout, setUser, user }) {
                 };
                 setInitialData(userData);
                 reset(userData);
-                setUser(data);
+                setUser(prevUser => ({ ...prevUser, ...data })); // Сохраняем все поля, включая roles
             } else {
                 throw new Error('Данные пользователя не получены');
             }
         } catch (err) {
             console.error('Ошибка при получении данных:', err);
-            setError('api', { message: 'Не удалось загрузить данные' });
+            setApiError('Не удалось загрузить данные. Попробуйте снова!');
             if (err.response?.status === 401) {
                 onLogout();
                 navigate('/login');
             }
         }
-    }, [reset, onLogout, setError, setUser, navigate]);
+    }, [reset, onLogout, setUser, navigate]);
 
     useEffect(() => {
         if (!initialData) fetchUser();
@@ -87,6 +89,18 @@ function EditProfile({ onLogout, setUser, user }) {
         return ['MALE', 'FEMALE'].includes(value) || 'Пол должен быть MALE или FEMALE';
     };
 
+    const getErrorMessage = () => {
+        if (errors.name?.type === 'minLength') return 'Имя должно содержать минимум 3 символа.';
+        if (errors.email?.type === 'required') return 'Пожалуйста, укажите ваш email.';
+        if (errors.email?.type === 'pattern') return 'Кажется, email введён некорректно. Проверьте формат!';
+        if (errors.phoneNumber?.type === 'validate') return errors.phoneNumber.message; // Для клиентской валидации
+        if (errors.phoneNumber?.message) return errors.phoneNumber.message; // Для серверной ошибки (например, уникальность)
+        if (errors.dateOfBirth?.type === 'validate') return 'Дата рождения не может быть в будущем.';
+        if (errors.gender?.type === 'validate') return 'Пол должен быть Мужчина или Женщина.';
+        if (errors.api) return errors.api.message; // Общая ошибка API
+        return '';
+    };
+
     const submit = async data => {
         try {
             const updatedData = {
@@ -99,22 +113,29 @@ function EditProfile({ onLogout, setUser, user }) {
                 avatar: user.avatar || undefined
             };
             const response = await api.post('/user/update', updatedData, { withCredentials: true });
-            // Обновляем данные пользователя на клиенте
             await fetchUser();
             setInitialData(data);
             reset(data);
-            // Если email изменился, обновляем локальные данные пользователя
             if (data.email && data.email !== initialData.email) {
-                setUser({ ...user, email: response.data.newEmail });
+                setUser(prevUser => ({ ...prevUser, email: response.data.newEmail }));
             }
             const randomMessage = successMessages[Math.floor(Math.random() * successMessages.length)];
+            setSuccess(randomMessage);
+            setApiError('');
             setNotificationMessage(randomMessage);
             setNotificationState('visible');
             setTimeout(() => setNotificationState('hiding'), 3000);
             setTimeout(() => setNotificationState('hidden'), 3500);
         } catch (err) {
             console.error('Ошибка обновления:', err);
-            setError('api', { message: err.response?.data?.message || 'Ошибка при обновлении данных' });
+            const errorMessage = err.response?.data?.message || 'Что-то пошло не так при обновлении. Попробуйте снова!';
+            if (errorMessage.includes('Номер телефона')) {
+                setError('phoneNumber', { message: errorMessage });
+            } else {
+                setError('api', { message: errorMessage });
+            }
+            setApiError(errorMessage);
+            setSuccess('');
             if (err.response?.status === 401) {
                 onLogout();
                 navigate('/login');
@@ -124,12 +145,10 @@ function EditProfile({ onLogout, setUser, user }) {
 
     const handleReset = () => {
         reset(initialData);
-        setUser({ ...user, ...initialData, avatar: initialData.avatar });
+        setUser(prevUser => ({ ...prevUser, ...initialData, avatar: initialData.avatar }));
+        setApiError('');
+        setSuccess('');
     };
-
-    const errorMessages = Object.values(errors)
-        .map(error => error.message)
-        .filter(Boolean);
 
     if (!initialData) return <div>Загрузка...</div>;
 
@@ -216,18 +235,21 @@ function EditProfile({ onLogout, setUser, user }) {
                         <button type="submit" className="primary">Сохранить</button>
                         <button type="button" className="secondary" onClick={handleReset}>Сбросить</button>
                     </div>
-                    {errorMessages.length > 0 && (
-                        <div style={{ marginTop: '20px' }}>
-                            {errorMessages.map((error, index) => (
-                                <p style={{ color: '#FF725E', marginTop: '5px' }} key={index}>{error}</p>
-                            ))}
+                    {Object.keys(errors).length > 0 && (
+                        <div className="error-block">
+                            <p className="error-text">{getErrorMessage()}</p>
+                        </div>
+                    )}
+                    {apiError && !Object.keys(errors).length && (
+                        <div className="error-block">
+                            <p className="error-text">{apiError}</p>
                         </div>
                     )}
                 </div>
             </form>
             {notificationState !== 'hidden' && (
                 <div className={`notification ${notificationState}`}>
-                    <img src={success} alt="notification" />
+                    <img src={successIcon} alt="notification" />
                     <span>{notificationMessage}</span>
                 </div>
             )}

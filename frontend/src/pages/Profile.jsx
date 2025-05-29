@@ -10,7 +10,23 @@ import AnnouncementsList from "../components/AnnouncementsList";
 
 const MyAds = () => <div>Мои объявления</div>;
 
+// Функция для преобразования роли в читаемое название
+const getRoleDisplayName = (roles) => {
+    console.log('Полученные роли в getRoleDisplayName:', roles);
+    if (!roles || !Array.isArray(roles) || roles.length === 0) {
+        console.warn('Роли отсутствуют, не являются массивом или пустой массив:', roles);
+        return 'Пользователь';
+    }
+    const normalizedRoles = roles.map(role => role.toUpperCase());
+    if (normalizedRoles.includes('ADMIN')) return 'Администратор';
+    if (normalizedRoles.includes('PRO')) return 'Предприниматель';
+    if (normalizedRoles.includes('USER')) return 'Пользователь';
+    console.warn('Неизвестные роли:', roles);
+    return 'Не определено';
+};
+
 function ProfileMenu({ user, handleLogout, handleAvatarChange }) {
+    console.log('Данные пользователя в ProfileMenu:', user);
     const navLinks = [
         { path: '/profile/info', name: 'Персональная информация', icon: 'user' },
         { path: '/profile/ads', name: 'Мои объявления', icon: 'bag' },
@@ -18,12 +34,15 @@ function ProfileMenu({ user, handleLogout, handleAvatarChange }) {
     const location = useLocation();
     const isInfoPage = location.pathname === '/profile/info';
 
+    // Защита от undefined
+    const roles = user?.roles || [];
+
     return (
         <div className="profile-menu">
             <div className="avatar-text-container">
                 <div className={`avatar-container ${isInfoPage ? 'editable' : ''}`}>
                     <img
-                        src={user.avatar || UserAvatar}
+                        src={user?.avatar || UserAvatar}
                         alt="Avatar"
                         className="avatar"
                         onClick={isInfoPage ? () => document.getElementById('avatarInput').click() : null}
@@ -49,8 +68,8 @@ function ProfileMenu({ user, handleLogout, handleAvatarChange }) {
                     )}
                 </div>
                 <div className="username-container">
-                    <p className="name">{user.name}</p>
-                    <p className="role">{user.role || 'Пользователь'}</p>
+                    <p className="name">{user?.name || 'Без имени'}</p>
+                    <p className="role">{getRoleDisplayName(roles)}</p>
                 </div>
             </div>
             <nav className="nav">
@@ -89,8 +108,8 @@ function Profile({ onLogout }) {
         const fetchUser = async () => {
             try {
                 const response = await api.get('/user/me');
+                console.log('Profile fetchUser response:', response.data);
                 if (response.data) {
-                    console.log('Profile fetchUser response:', response.data);
                     setUser(response.data);
                 } else {
                     throw new Error('Данные пользователя не получены');
@@ -118,7 +137,10 @@ function Profile({ onLogout }) {
                 reader.onloadend = () => {
                     const base64String = reader.result;
                     console.log('Base64 avatar:', base64String);
-                    setUser({ ...user, avatar: base64String });
+                    setUser(prevUser => ({
+                        ...prevUser,
+                        avatar: base64String
+                    }));
                 };
                 reader.readAsDataURL(file);
             } catch (err) {

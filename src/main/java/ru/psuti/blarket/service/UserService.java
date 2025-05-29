@@ -10,9 +10,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import ru.psuti.blarket.dto.UserRegistrationDTO;
 import ru.psuti.blarket.dto.UserUpdateDTO;
+import ru.psuti.blarket.model.Role;
 import ru.psuti.blarket.model.User;
 import ru.psuti.blarket.repository.UserRepository;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -24,6 +27,7 @@ import java.util.Optional;
 public class UserService {
 
     private static final String ERROR_EMAIL_EXISTS = "Пользователь с email %s уже зарегистрирован";
+    private static final String ERROR_PHONE_EXISTS = "Номер телефона %s уже используется";
     private static final String ERROR_USER_NOT_FOUND = "Пользователь с email %s не найден";
 
     private final UserRepository userRepository;
@@ -40,13 +44,17 @@ public class UserService {
         if (userRepository.existsByEmail(userDTO.getEmail())) {
             throw new IllegalArgumentException(String.format(ERROR_EMAIL_EXISTS, userDTO.getEmail()));
         }
+        List<Role> roles = userDTO.getRoles() != null && !userDTO.getRoles().isEmpty()
+                ? userDTO.getRoles()
+                : List.of(Role.USER); // По умолчанию роль USER
         User user = User.builder()
                 .name(userDTO.getName())
                 .password(passwordEncoder.encode(userDTO.getPassword()))
                 .email(userDTO.getEmail())
+                .roles(new ArrayList<>(roles))
                 .build();
         userRepository.save(user);
-        log.info("Пользователь с email {} успешно зарегистрирован", userDTO.getEmail());
+        log.info("Пользователь с email {} успешно зарегистрирован с ролями {}", userDTO.getEmail(), roles);
     }
 
     /**
@@ -54,7 +62,7 @@ public class UserService {
      *
      * @param email    текущий email пользователя
      * @param updateDTO данные для обновления
-     * @throws IllegalArgumentException если новый email уже занят
+     * @throws IllegalArgumentException если новый email или номер телефона уже занят
      * @throws UsernameNotFoundException если пользователь не найден
      */
     public void updateUser(String email, UserUpdateDTO updateDTO) {
@@ -72,12 +80,23 @@ public class UserService {
                     updateSecurityContext(newEmail);
                 });
 
+        Optional.ofNullable(updateDTO.getPhoneNumber())
+                .filter(phone -> !phone.equals(user.getPhoneNumber()))
+                .ifPresent(phone -> {
+                    if (userRepository.existsByPhoneNumberAndIdNot(phone, user.getId())) {
+                        throw new IllegalArgumentException(String.format(ERROR_PHONE_EXISTS, phone));
+                    }
+                    user.setPhoneNumber(phone);
+                });
+
         Optional.ofNullable(updateDTO.getName()).ifPresent(user::setName);
         Optional.ofNullable(updateDTO.getGender()).ifPresent(user::setGender);
         Optional.ofNullable(updateDTO.getAddress()).ifPresent(user::setAddress);
-        Optional.ofNullable(updateDTO.getPhoneNumber()).ifPresent(user::setPhoneNumber);
         Optional.ofNullable(updateDTO.getDateOfBirth()).ifPresent(user::setDateOfBirth);
         Optional.ofNullable(updateDTO.getAvatar()).ifPresent(user::setAvatar);
+        Optional.ofNullable(updateDTO.getRoles())
+                .filter(roles -> !roles.isEmpty())
+                .ifPresent(roles -> user.setRoles(new ArrayList<>(roles)));
 
         userRepository.save(user);
         log.info("Данные пользователя с email {} успешно обновлены", email);

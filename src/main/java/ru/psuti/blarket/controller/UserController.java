@@ -107,8 +107,8 @@ public class UserController {
         LOGGER.info("Запрос данных пользователя для email: {}", email);
         return userRepository.findByEmail(email)
                 .map(user -> {
-                    LOGGER.info("Данные пользователя: name={}, email={}, gender={}, phoneNumber={}, dateOfBirth={}, address={}",
-                            user.getName(), user.getEmail(), user.getGender(), user.getPhoneNumber(), user.getDateOfBirth(), user.getAddress());
+                    LOGGER.info("Данные пользователя: name={}, email={}, gender={}, phoneNumber={}, dateOfBirth={}, address={}, roles={}",
+                            user.getName(), user.getEmail(), user.getGender(), user.getPhoneNumber(), user.getDateOfBirth(), user.getAddress(), user.getRoles());
                     Map<String, Object> userData = new HashMap<>();
                     userData.put("name", user.getName() != null ? user.getName() : "");
                     userData.put("email", user.getEmail() != null ? user.getEmail() : "");
@@ -117,6 +117,7 @@ public class UserController {
                     userData.put("date_of_birth", user.getDateOfBirth());
                     userData.put("address", user.getAddress());
                     userData.put("avatar", user.getAvatar());
+                    userData.put("roles", user.getRoles());
                     return ResponseEntity.ok(userData);
                 })
                 .orElseGet(() -> {

@@ -1,8 +1,11 @@
 package ru.psuti.blarket.dto;
 
 import lombok.Data;
+import ru.psuti.blarket.model.Role;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * DTO для обновления данных пользователя.
@@ -16,4 +19,5 @@ public class UserUpdateDTO {
     private String phoneNumber;
     private LocalDate dateOfBirth;
     private String avatar;
+    private List<Role> roles = new ArrayList<>();
 }
