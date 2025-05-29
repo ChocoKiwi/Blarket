@@ -3,30 +3,26 @@ import { Link, useLocation, useNavigate, Routes, Route } from 'react-router-dom'
 import api from '../api';
 import Header from '../components/Header';
 import EditProfile from '../components/EditProfile';
+import CategorySelector from '../components/CategorySelector';
+import CreateAnnouncement from '../components/CreateAnnouncement';
+import AnnouncementsList from '../components/AnnouncementsList';
 import UserAvatar from '../assets/icons/user-avatar.svg';
-import icons from "../assets/icons/icons";
-import CreateAnnouncement from "../components/CreateAnnouncement";
-import AnnouncementsList from "../components/AnnouncementsList";
+import icons from '../assets/icons/icons';
 
 const MyAds = () => <div>Мои объявления</div>;
 
-// Функция для преобразования роли в читаемое название
 const getRoleDisplayName = (roles) => {
-    console.log('Полученные роли в getRoleDisplayName:', roles);
     if (!roles || !Array.isArray(roles) || roles.length === 0) {
-        console.warn('Роли отсутствуют, не являются массивом или пустой массив:', roles);
         return 'Пользователь';
     }
     const normalizedRoles = roles.map(role => role.toUpperCase());
     if (normalizedRoles.includes('ADMIN')) return 'Администратор';
     if (normalizedRoles.includes('PRO')) return 'Предприниматель';
     if (normalizedRoles.includes('USER')) return 'Пользователь';
-    console.warn('Неизвестные роли:', roles);
     return 'Не определено';
 };
 
 function ProfileMenu({ user, handleLogout, handleAvatarChange }) {
-    console.log('Данные пользователя в ProfileMenu:', user);
     const navLinks = [
         { path: '/profile/info', name: 'Персональная информация', icon: 'user' },
         { path: '/profile/ads', name: 'Мои объявления', icon: 'bag' },
@@ -34,7 +30,6 @@ function ProfileMenu({ user, handleLogout, handleAvatarChange }) {
     const location = useLocation();
     const isInfoPage = location.pathname === '/profile/info';
 
-    // Защита от undefined
     const roles = user?.roles || [];
 
     return (
@@ -90,7 +85,7 @@ function ProfileMenu({ user, handleLogout, handleAvatarChange }) {
             </nav>
             {location.pathname === '/profile/ads' && (
                 <div className="button-container">
-                    <Link to="/profile/ads/create" className="button">
+                    <Link to="/profile/ads/select-category" className="button">
                         Новое объявление
                     </Link>
                 </div>
@@ -108,7 +103,6 @@ function Profile({ onLogout }) {
         const fetchUser = async () => {
             try {
                 const response = await api.get('/user/me');
-                console.log('Profile fetchUser response:', response.data);
                 if (response.data) {
                     setUser(response.data);
                 } else {
@@ -125,7 +119,6 @@ function Profile({ onLogout }) {
                 }
             }
         };
-
         fetchUser();
     }, [onLogout, navigate]);
 
@@ -136,7 +129,6 @@ function Profile({ onLogout }) {
                 const reader = new FileReader();
                 reader.onloadend = () => {
                     const base64String = reader.result;
-                    console.log('Base64 avatar:', base64String);
                     setUser(prevUser => ({
                         ...prevUser,
                         avatar: base64String
@@ -172,8 +164,10 @@ function Profile({ onLogout }) {
                 <Routes>
                     <Route path="/" element={<EditProfile user={user} setUser={setUser} onLogout={onLogout} />} />
                     <Route path="/info" element={<EditProfile user={user} setUser={setUser} onLogout={onLogout} />} />
+                    <Route path="/ads/select-category" element={<CategorySelector />} />
                     <Route path="/ads/create" element={<CreateAnnouncement user={user} setUser={setUser} onLogout={onLogout} />} />
-                    <Route path="/ads/edit/:id" element={<CreateAnnouncement user={user} setUser={setUser} onLogout={onLogout} isEditMode />} />
+                    <Route path="/ads/edit/:id" element={<CategorySelector isEditMode={true} announcementId={useLocation().pathname.split('/').pop()} />} />
+                    <Route path="/ads/edit-form/:id" element={<CreateAnnouncement user={user} setUser={setUser} onLogout={onLogout} isEditMode={true} />} />
                     <Route path="/ads" element={<AnnouncementsList user={user} setUser={setUser} onLogout={onLogout} />} />
                 </Routes>
             </div>

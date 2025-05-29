@@ -63,7 +63,9 @@ const AnnouncementsList = () => {
 
     useEffect(() => {
         const handleClickOutside = e => {
-            if (menuRef.current && !menuRef.current.contains(e.target)) setOpenMenu(null);
+            // Закрываем меню, если клик был вне открытого popup
+            const isClickInsidePopup = e.target.closest('.popup') || e.target.closest('.icon-dots');
+            if (!isClickInsidePopup) setOpenMenu(null);
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -94,7 +96,7 @@ const AnnouncementsList = () => {
             <h2 className="text">Мои объявления</h2>
             {!data.length ? (
                 <p className="text-gray-500">
-                    Пусто :( Давайте <Link to={`/profile/ads/create`} className="nav-link">создадим</Link> ваше первое объявление!
+                    Пусто :( Давайте <Link to={`/profile/ads/select-category`} className="nav-link">создадим</Link> ваше первое объявление!
                 </p>
             ) : (
                 <div className="grid">

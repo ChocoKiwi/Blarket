@@ -99,6 +99,9 @@ public class AnnouncementController {
         }
     }
 
+    /**
+     * Получает объявление по ID для редактирования.
+     */
     @GetMapping("/{id}")
     public ResponseEntity<?> getAnnouncementById(@PathVariable Long id, @AuthenticationPrincipal User user) {
         if (user == null) {
@@ -107,10 +110,23 @@ public class AnnouncementController {
         }
         try {
             Announcement announcement = announcementService.getAnnouncementById(id, user);
-            return ResponseEntity.ok(announcement);
+            return ResponseEntity.ok(UpdateAnnouncementDTO.fromAnnouncement(announcement));
         } catch (Exception e) {
             LOGGER.error("Ошибка при получении объявления с ID {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Объявление не найдено"));
+        }
+    }
+
+    /**
+     * Получает объявления по категории (включая подкатегории).
+     */
+    @GetMapping("/categories/{categoryId}")
+    public ResponseEntity<?> getAnnouncementsByCategory(@PathVariable Long categoryId) {
+        try {
+            return ResponseEntity.ok(announcementService.getAnnouncementsByCategory(categoryId));
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при получении объявлений для категории с ID {}: {}", categoryId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
         }
     }
 }

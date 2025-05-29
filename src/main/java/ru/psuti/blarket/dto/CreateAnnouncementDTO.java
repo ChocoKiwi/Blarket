@@ -19,4 +19,5 @@ public class CreateAnnouncementDTO {
     private Integer quantity;
     private Announcement.Condition itemCondition;
     private List<String> deliveryOptions;
+    private Long categoryId; // Добавлено поле для категории
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import api from '../api';
 import icons from '../assets/icons/icons';
@@ -10,7 +10,9 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
     const [dragOver, setDragOver] = useState([false, false, false]);
     const itemCondition = watch('itemCondition');
     const navigate = useNavigate();
-    const { id } = useParams(); // Получаем ID из URL
+    const { id } = useParams();
+    const { state } = useLocation();
+    const categoryId = state?.categoryId;
 
     const handleImageChange = (index, file) => {
         if (file && file.type.startsWith('image/')) {
@@ -30,36 +32,26 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
 
     const [formattedPrice, setFormattedPrice] = useState('');
     const [formattedQuantity, setFormattedQuantity] = useState('');
+    const [formError, setFormError] = useState(null);
 
-    // Загрузка данных объявления для редактирования
     useEffect(() => {
         if (isEditMode && id) {
             const fetchAnnouncement = async () => {
                 try {
                     const response = await api.get(`/announcements/${id}`);
                     const announcement = response.data;
-                    // Заполняем форму данными
                     setValue('title', announcement.title);
                     setValue('description', announcement.description);
                     setValue('price', announcement.price);
                     setValue('quantity', announcement.quantity);
                     setValue('address', announcement.address);
-                    setValue('itemCondition', announcement.itemCondition);
+                    setValue('itemCondition', announcement.itemCondition); // Исправлено с 'conditions' на 'itemCondition'
                     setFormattedPrice(formatPriceInput(announcement.price));
                     setFormattedQuantity(formatQuantityInput(announcement.quantity));
 
-                    // Обработка imageUrls
-                    let images = [null, null, null]; // Дефолтное состояние
-                    if (announcement.imageUrls) {
-                        try {
-                            // Предполагаем, что imageUrls — это JSON-строка вида "[url1, url2, url3]"
-                            const parsedImages = JSON.parse(announcement.imageUrls);
-                            if (Array.isArray(parsedImages)) {
-                                images = parsedImages.slice(0, 3).concat(Array(3 - parsedImages.slice(0, 3).length).fill(null));
-                            }
-                        } catch (e) {
-                            console.error('Ошибка при парсинге imageUrls:', e);
-                        }
+                    let images = [null, null, null];
+                    if (announcement.imageUrls && Array.isArray(announcement.imageUrls)) {
+                        images = announcement.imageUrls.slice(0, 3).concat(Array(3 - announcement.imageUrls.slice(0, 3).length).fill(null));
                     }
                     setImagePreviews(images);
                 } catch (error) {
@@ -106,6 +98,11 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
     };
 
     const onSubmit = async data => {
+        if (!categoryId) {
+            setFormError('Выберите категорию');
+            return;
+        }
+
         const formData = {
             title: data.title,
             description: data.description,
@@ -114,14 +111,13 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
             address: data.address,
             itemCondition: data.itemCondition,
             imageUrls: imagePreviews.filter(url => url !== null),
+            categoryId: categoryId
         };
 
         try {
             if (isEditMode && id) {
-                // Обновление объявления
                 await api.put(`/announcements/${id}`, formData, { withCredentials: true });
             } else {
-                // Создание нового объявления
                 await api.post('/announcements', formData, { withCredentials: true });
             }
             reset();
@@ -131,6 +127,7 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
             navigate('/profile/ads');
         } catch (error) {
             console.error('Ошибка при сохранении объявления:', error);
+            setFormError('Ошибка при сохранении объявления');
         }
     };
 
@@ -148,6 +145,7 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
         setImagePreviews([null, null, null]);
         setFormattedPrice('');
         setFormattedQuantity('');
+        setFormError(null);
     };
 
     return (
@@ -217,13 +215,13 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
                                     {['NEW', 'USED', 'BUYSELL'].map(condition => (
                                         <div
                                             key={condition}
-                                            className={`condition-chip ${itemCondition === condition ? 'selected' : ''} ${isEditMode ? 'disabled' : ''}`}
-                                            onClick={isEditMode ? null : () => setValue('itemCondition', condition, {shouldValidate: true})}
+                                            className={`condition-chip ${itemCondition === condition ? 'selected' : ''}`} // Исправлено с 'conditions' на 'condition'
+                                            onClick={() => setValue('itemCondition', condition, { shouldValidate: true })}
                                         >
                                             <input
                                                 type="radio"
                                                 value={condition}
-                                                {...register('itemCondition', {required: 'Выберите состояние'})}
+                                                {...register('itemCondition', { required: 'Выберите состояние' })}
                                                 className="hidden"
                                                 checked={itemCondition === condition}
                                             />
@@ -234,7 +232,7 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
                             </div>
                             <div className="input">
                                 <label>Название</label>
-                                <input {...register('title', {required: 'Это поле обязательно'})} />
+                                <input {...register('title', { required: 'Это поле обязательно' })} />
                             </div>
                             <div className="input description">
                                 <label>Описание</label>
@@ -248,7 +246,7 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
                                         value={formattedPrice}
                                         onChange={e => {
                                             const raw = unformatInput(e.target.value);
-                                            setValue('price', raw, {shouldValidate: true});
+                                            setValue('price', raw, { shouldValidate: true });
                                             setFormattedPrice(formatPriceInput(raw));
                                         }}
                                         onBlur={() => {
@@ -267,7 +265,7 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
                                         value={formattedQuantity}
                                         onChange={e => {
                                             const raw = unformatInput(e.target.value);
-                                            setValue('quantity', raw, {shouldValidate: true});
+                                            setValue('quantity', raw, { shouldValidate: true });
                                             setFormattedQuantity(formatQuantityInput(raw));
                                         }}
                                         onBlur={() => {
@@ -284,7 +282,7 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
                     </div>
                     <div className="input">
                         <label>Адрес</label>
-                        <input {...register('address', {required: 'Это поле обязательно'})} />
+                        <input {...register('address', { required: 'Это поле обязательно' })} />
                     </div>
                 </div>
                 <div>
@@ -292,9 +290,9 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
                         <button type="submit" className="primary">{isEditMode ? 'Изменить' : 'Опубликовать'}</button>
                         <button type="button" className="secondary" onClick={handleReset}>Сбросить</button>
                     </div>
-                    {Object.keys(errors).length > 0 && (
+                    {(Object.keys(errors).length > 0 || formError) && (
                         <div className="error-block">
-                            <p className="error-text">{getErrorMessage(errors)}</p>
+                            <p className="error-text">{formError || getErrorMessage(errors)}</p>
                         </div>
                     )}
                 </div>
