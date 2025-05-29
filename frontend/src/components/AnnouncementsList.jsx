@@ -117,7 +117,7 @@ const AnnouncementsList = () => {
                                         </div>
                                         {openMenu === a.id && (
                                             <div className="popup">
-                                                <Link to={`/announcements/edit/${a.id}`} className="nav-link">
+                                                <Link to={`/profile/ads/edit/${a.id}`} className="nav-link">
                                                     <icons.pen className="menu-icon icon-edit" /> Изменить объявление
                                                 </Link>
                                                 <Link to={`/announcements/stats/${a.id}`} className="nav-link">

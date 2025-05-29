@@ -1,18 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import api from '../api';
 import icons from '../assets/icons/icons';
 
-/**
- * Компонент для создания нового объявления.
- */
-const CreateAnnouncement = () => {
+const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => {
     const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm();
     const [imagePreviews, setImagePreviews] = useState([null, null, null]);
     const [dragOver, setDragOver] = useState([false, false, false]);
     const itemCondition = watch('itemCondition');
     const navigate = useNavigate();
+    const { id } = useParams(); // Получаем ID из URL
 
     const handleImageChange = (index, file) => {
         if (file && file.type.startsWith('image/')) {
@@ -26,12 +24,52 @@ const CreateAnnouncement = () => {
         }
     };
 
-    const formatPriceInput = value => value ? value.toString().replace(/[^\d]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₽' : '';
-    const formatQuantityInput = value => value ? value.toString().replace(/[^\d]/g, '') + ' шт' : '';
+    const formatPriceInput = value => (value ? value.toString().replace(/[^\d]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₽' : '');
+    const formatQuantityInput = value => (value ? value.toString().replace(/[^\d]/g, '') + ' шт' : '');
     const unformatInput = value => value.toString().replace(/[^\d]/g, '');
 
     const [formattedPrice, setFormattedPrice] = useState('');
     const [formattedQuantity, setFormattedQuantity] = useState('');
+
+    // Загрузка данных объявления для редактирования
+    useEffect(() => {
+        if (isEditMode && id) {
+            const fetchAnnouncement = async () => {
+                try {
+                    const response = await api.get(`/announcements/${id}`);
+                    const announcement = response.data;
+                    // Заполняем форму данными
+                    setValue('title', announcement.title);
+                    setValue('description', announcement.description);
+                    setValue('price', announcement.price);
+                    setValue('quantity', announcement.quantity);
+                    setValue('address', announcement.address);
+                    setValue('itemCondition', announcement.itemCondition);
+                    setFormattedPrice(formatPriceInput(announcement.price));
+                    setFormattedQuantity(formatQuantityInput(announcement.quantity));
+
+                    // Обработка imageUrls
+                    let images = [null, null, null]; // Дефолтное состояние
+                    if (announcement.imageUrls) {
+                        try {
+                            // Предполагаем, что imageUrls — это JSON-строка вида "[url1, url2, url3]"
+                            const parsedImages = JSON.parse(announcement.imageUrls);
+                            if (Array.isArray(parsedImages)) {
+                                images = parsedImages.slice(0, 3).concat(Array(3 - parsedImages.slice(0, 3).length).fill(null));
+                            }
+                        } catch (e) {
+                            console.error('Ошибка при парсинге imageUrls:', e);
+                        }
+                    }
+                    setImagePreviews(images);
+                } catch (error) {
+                    console.error('Ошибка при загрузке объявления:', error);
+                    navigate('/profile/ads');
+                }
+            };
+            fetchAnnouncement();
+        }
+    }, [id, isEditMode, setValue, navigate]);
 
     useEffect(() => {
         const subscription = watch((value, { name }) => {
@@ -53,18 +91,18 @@ const CreateAnnouncement = () => {
 
     const handleDrop = (index, event) => {
         event.preventDefault();
-        setDragOver(prev => prev.map((val, i) => i === index ? false : val));
+        setDragOver(prev => prev.map((val, i) => (i === index ? false : val)));
         const file = event.dataTransfer.files[0];
         handleImageChange(index, file);
     };
 
     const handleDragOver = (index, event) => {
         event.preventDefault();
-        setDragOver(prev => prev.map((val, i) => i === index ? true : val));
+        setDragOver(prev => prev.map((val, i) => (i === index ? true : val)));
     };
 
     const handleDragLeave = index => {
-        setDragOver(prev => prev.map((val, i) => i === index ? false : val));
+        setDragOver(prev => prev.map((val, i) => (i === index ? false : val)));
     };
 
     const onSubmit = async data => {
@@ -79,14 +117,20 @@ const CreateAnnouncement = () => {
         };
 
         try {
-            await api.post('/announcements', formData, { withCredentials: true });
+            if (isEditMode && id) {
+                // Обновление объявления
+                await api.put(`/announcements/${id}`, formData, { withCredentials: true });
+            } else {
+                // Создание нового объявления
+                await api.post('/announcements', formData, { withCredentials: true });
+            }
             reset();
             setImagePreviews([null, null, null]);
             setFormattedPrice('');
             setFormattedQuantity('');
             navigate('/profile/ads');
         } catch (error) {
-            console.error('Ошибка при создании объявления:', error);
+            console.error('Ошибка при сохранении объявления:', error);
         }
     };
 
@@ -109,7 +153,7 @@ const CreateAnnouncement = () => {
     return (
         <div>
             <form onSubmit={handleSubmit(onSubmit)}>
-                <h2>Создать объявление</h2>
+                <h2>{isEditMode ? 'Редактировать объявление' : 'Создать объявление'}</h2>
                 <div className='annoucement'>
                     <div className="update-container for-ads">
                         <div className="input three-image-container">
@@ -129,10 +173,10 @@ const CreateAnnouncement = () => {
                                     />
                                     <label htmlFor="image-upload-0" className="upload-label">
                                         {imagePreviews[0] ? (
-                                            <img src={imagePreviews[0]} alt="Preview 1" className="preview-image"/>
+                                            <img src={imagePreviews[0]} alt="Preview 1" className="preview-image" />
                                         ) : (
                                             <div className="upload-placeholder first">
-                                                <img src={icons.camera} alt="Camera"/>
+                                                <img src={icons.camera} alt="Camera" />
                                             </div>
                                         )}
                                     </label>
@@ -155,10 +199,10 @@ const CreateAnnouncement = () => {
                                             />
                                             <label htmlFor={`image-upload-${index}`} className="upload-label">
                                                 {imagePreviews[index] ? (
-                                                    <img src={imagePreviews[index]} alt={`Preview ${index + 1}`} className="preview-image"/>
+                                                    <img src={imagePreviews[index]} alt={`Preview ${index + 1}`} className="preview-image" />
                                                 ) : (
                                                     <div className="upload-placeholder">
-                                                        <img src={icons.camera} alt="Camera"/>
+                                                        <img src={icons.camera} alt="Camera" />
                                                     </div>
                                                 )}
                                             </label>
@@ -173,14 +217,15 @@ const CreateAnnouncement = () => {
                                     {['NEW', 'USED', 'BUYSELL'].map(condition => (
                                         <div
                                             key={condition}
-                                            className={`condition-chip ${itemCondition === condition ? 'selected' : ''}`}
-                                            onClick={() => setValue('itemCondition', condition, { shouldValidate: true })}
+                                            className={`condition-chip ${itemCondition === condition ? 'selected' : ''} ${isEditMode ? 'disabled' : ''}`}
+                                            onClick={isEditMode ? null : () => setValue('itemCondition', condition, {shouldValidate: true})}
                                         >
                                             <input
                                                 type="radio"
                                                 value={condition}
-                                                {...register('itemCondition', { required: 'Выберите состояние' })}
+                                                {...register('itemCondition', {required: 'Выберите состояние'})}
                                                 className="hidden"
+                                                checked={itemCondition === condition}
                                             />
                                             <span>{condition === 'NEW' ? 'Новое' : condition === 'USED' ? 'Б/у' : 'Купли/Продажа'}</span>
                                         </div>
@@ -189,7 +234,7 @@ const CreateAnnouncement = () => {
                             </div>
                             <div className="input">
                                 <label>Название</label>
-                                <input {...register('title', { required: 'Это поле обязательно' })} />
+                                <input {...register('title', {required: 'Это поле обязательно'})} />
                             </div>
                             <div className="input description">
                                 <label>Описание</label>
@@ -203,7 +248,7 @@ const CreateAnnouncement = () => {
                                         value={formattedPrice}
                                         onChange={e => {
                                             const raw = unformatInput(e.target.value);
-                                            setValue('price', raw, { shouldValidate: true });
+                                            setValue('price', raw, {shouldValidate: true});
                                             setFormattedPrice(formatPriceInput(raw));
                                         }}
                                         onBlur={() => {
@@ -222,7 +267,7 @@ const CreateAnnouncement = () => {
                                         value={formattedQuantity}
                                         onChange={e => {
                                             const raw = unformatInput(e.target.value);
-                                            setValue('quantity', raw, { shouldValidate: true });
+                                            setValue('quantity', raw, {shouldValidate: true});
                                             setFormattedQuantity(formatQuantityInput(raw));
                                         }}
                                         onBlur={() => {
@@ -239,12 +284,12 @@ const CreateAnnouncement = () => {
                     </div>
                     <div className="input">
                         <label>Адрес</label>
-                        <input {...register('address', { required: 'Это поле обязательно' })} />
+                        <input {...register('address', {required: 'Это поле обязательно'})} />
                     </div>
                 </div>
                 <div>
                     <div className="button-container">
-                        <button type="submit" className="primary">Сохранить</button>
+                        <button type="submit" className="primary">{isEditMode ? 'Изменить' : 'Опубликовать'}</button>
                         <button type="button" className="secondary" onClick={handleReset}>Сбросить</button>
                     </div>
                     {Object.keys(errors).length > 0 && (

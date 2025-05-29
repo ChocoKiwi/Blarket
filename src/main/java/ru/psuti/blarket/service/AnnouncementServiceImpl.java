@@ -127,4 +127,13 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             return dto;
         }).collect(Collectors.toList());
     }
+
+    public Announcement getAnnouncementById(Long id, User user) {
+        Announcement announcement = announcementRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Объявление не найдено"));
+        if (!announcement.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Доступ запрещен");
+        }
+        return announcement;
+    }
 }

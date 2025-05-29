@@ -98,4 +98,19 @@ public class AnnouncementController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Ошибка сервера"));
         }
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getAnnouncementById(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        if (user == null) {
+            LOGGER.warn("Неавторизованный доступ к получению объявления с ID {}", id);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        try {
+            Announcement announcement = announcementService.getAnnouncementById(id, user);
+            return ResponseEntity.ok(announcement);
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при получении объявления с ID {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Объявление не найдено"));
+        }
+    }
 }

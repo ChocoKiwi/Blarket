@@ -151,6 +151,7 @@ function Profile({ onLogout }) {
                     <Route path="/" element={<EditProfile user={user} setUser={setUser} onLogout={onLogout} />} />
                     <Route path="/info" element={<EditProfile user={user} setUser={setUser} onLogout={onLogout} />} />
                     <Route path="/ads/create" element={<CreateAnnouncement user={user} setUser={setUser} onLogout={onLogout} />} />
+                    <Route path="/ads/edit/:id" element={<CreateAnnouncement user={user} setUser={setUser} onLogout={onLogout} isEditMode />} />
                     <Route path="/ads" element={<AnnouncementsList user={user} setUser={setUser} onLogout={onLogout} />} />
                 </Routes>
             </div>

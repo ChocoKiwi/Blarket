@@ -16,4 +16,6 @@ public interface AnnouncementService {
     Announcement updateAnnouncement(Long id, UpdateAnnouncementDTO dto, User user);
     void deleteAnnouncement(Long id, User user);
     List<AnnouncementDTO> getAnnouncementsByUser(User user);
+
+    Announcement getAnnouncementById(Long id, User user);
 }
