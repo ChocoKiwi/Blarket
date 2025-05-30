@@ -1,4 +1,3 @@
-// Announcement.java
 package ru.psuti.blarket.model;
 
 import jakarta.persistence.*;
@@ -24,7 +23,7 @@ public class Announcement {
     private String description;
     private BigDecimal price;
 
-    @Column(name = "image_urls", columnDefinition = "TEXT")
+    @Column(name = "image_urls", columnDefinition = "LONGTEXT")
     private String imageUrls;
 
     private String address;
@@ -36,7 +35,7 @@ public class Announcement {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", columnDefinition = "VARCHAR(20)")
-    private Status status; // Новое поле статуса
+    private Status status;
 
     @ManyToOne
     private Category category;

@@ -14,6 +14,9 @@ import Pen from './solar_pen-bold.svg?react'
 import Chart from './solar_chart-bold.svg?react'
 import Eye from './solar_eye-bold.svg?react'
 import CommentCount from './solar_chat-square-like-bold.svg?react'
+import Archive from './solar_archive-linear.svg?react'
+import Publish from './solar_export-bold.svg?react'
+import Rest from './solar_restart-square-bold.svg?react'
 
 
 const icons = {
@@ -32,7 +35,10 @@ const icons = {
     pen:Pen,
     chart:Chart,
     eye: Eye,
-    commentCount: CommentCount
+    commentCount: CommentCount,
+    archive: Archive,
+    publish: Publish,
+    rest: Rest
 };
 
 export default icons;

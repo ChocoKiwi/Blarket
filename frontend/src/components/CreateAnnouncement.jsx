@@ -4,6 +4,8 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import api from '../api';
 import icons from '../assets/icons/icons';
+import imageCompression from 'browser-image-compression';
+import successIcon from '../assets/icons/sucsses.svg'; // Иконка для уведомлений
 
 const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => {
     const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm({
@@ -13,7 +15,7 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
             price: '',
             quantity: '',
             address: '',
-            itemCondition: '',
+            itemCondition: 'NEW', // Значение по умолчанию
         },
     });
     const [imagePreviews, setImagePreviews] = useState([null, null, null]);
@@ -21,6 +23,8 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
     const [formError, setFormError] = useState(null);
     const [formattedPrice, setFormattedPrice] = useState('');
     const [formattedQuantity, setFormattedQuantity] = useState('');
+    const [notificationMessage, setNotificationMessage] = useState(''); // Для уведомлений
+    const [notificationState, setNotificationState] = useState('hidden'); // Для уведомлений
 
     const navigate = useNavigate();
     const { id } = useParams();
@@ -28,15 +32,27 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
     const categoryId = state?.categoryId;
 
     const itemCondition = watch('itemCondition');
-    const title = watch('title');
-    const description = watch('description');
-    const address = watch('address');
 
     // Форматирование и очистка входных данных
     const formatPriceInput = (value) =>
         value ? value.toString().replace(/[^\d]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₽' : '';
     const formatQuantityInput = (value) => (value ? value.toString().replace(/[^\d]/g, '') + ' шт' : '');
     const unformatInput = (value) => value.toString().replace(/[^\d]/g, '');
+
+    // Уведомления
+    const showNotification = (title, action) => {
+        const variations = [
+            `Объявление "${title}" теперь ${action}!`,
+            `Готово! "${title}" успешно ${action}.`,
+            `Успех! Объявление "${title}" ${action}.`,
+            `"${title}" теперь ${action}. Отлично!`
+        ];
+        const message = variations[Math.floor(Math.random() * variations.length)];
+        setNotificationMessage(message);
+        setNotificationState('visible');
+        setTimeout(() => setNotificationState('hiding'), 3000);
+        setTimeout(() => setNotificationState('hidden'), 3500);
+    };
 
     // Загрузка данных для редактирования
     useEffect(() => {
@@ -50,7 +66,10 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
                     setValue('price', announcement.price || '');
                     setValue('quantity', announcement.quantity || '');
                     setValue('address', announcement.address || '');
-                    setValue('itemCondition', announcement.itemCondition || '');
+                    // Проверяем condition и устанавливаем допустимое значение
+                    const validConditions = ['NEW', 'USED', 'BUYSELL'];
+                    const condition = validConditions.includes(announcement.condition) ? announcement.condition : 'NEW';
+                    setValue('itemCondition', condition, { shouldValidate: true });
                     setFormattedPrice(announcement.price ? formatPriceInput(announcement.price) : '');
                     setFormattedQuantity(announcement.quantity ? formatQuantityInput(announcement.quantity) : '');
 
@@ -83,16 +102,27 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
         return () => subscription.unsubscribe();
     }, [watch]);
 
-    // Обработка загрузки изображений
-    const handleImageChange = (index, file) => {
+    // Обработка загрузки изображений с сжатием
+    const handleImageChange = async (index, file) => {
         if (file && file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const updatedPreviews = [...imagePreviews];
-                updatedPreviews[index] = reader.result;
-                setImagePreviews(updatedPreviews);
-            };
-            reader.readAsDataURL(file);
+            try {
+                const options = {
+                    maxSizeMB: 0.5,
+                    maxWidthOrHeight: 1024,
+                    useWebWorker: true,
+                };
+                const compressedFile = await imageCompression(file, options);
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const updatedPreviews = [...imagePreviews];
+                    updatedPreviews[index] = reader.result;
+                    setImagePreviews(updatedPreviews);
+                };
+                reader.readAsDataURL(compressedFile);
+            } catch (error) {
+                console.error('Ошибка при сжатии изображения:', error);
+                setFormError('Не удалось обработать изображение');
+            }
         }
     };
 
@@ -117,13 +147,6 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
         setDragOver((prev) => prev.map((val, i) => (i === index ? false : val)));
     };
 
-    // Очистка поля
-    const handleClearField = (field) => {
-        setValue(field, '');
-        if (field === 'price') setFormattedPrice('');
-        if (field === 'quantity') setFormattedQuantity('');
-    };
-
     // Отправка формы
     const onSubmit = async (data, isDraft = false) => {
         if (!categoryId && !isEditMode) {
@@ -140,13 +163,21 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
             itemCondition: data.itemCondition || null,
             imageUrls: imagePreviews.filter((url) => url !== null),
             categoryId: categoryId || data.categoryId,
+            deliveryOptions: [],
         };
 
         try {
+            const headers = {
+                'Content-Type': 'application/json',
+                withCredentials: true,
+            };
+
             if (isEditMode && id) {
-                await api.put(`/announcements/${id}${isDraft ? '/draft' : ''}`, formData, { withCredentials: true });
+                await api.put(`/announcements/${id}${isDraft ? '/draft' : ''}`, formData, { headers });
+                showNotification(data.title, isDraft ? 'сохранено как черновик' : 'обновлено');
             } else {
-                await api.post(`/announcements${isDraft ? '/draft' : ''}`, formData, { withCredentials: true });
+                await api.post(`/announcements${isDraft ? '/draft' : ''}`, formData, { headers });
+                showNotification(data.title, isDraft ? 'сохранено как черновик' : 'опубликовано');
             }
             reset();
             setImagePreviews([null, null, null]);
@@ -245,37 +276,22 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
                                                 value={condition}
                                                 {...register('itemCondition', { required: 'Выберите состояние' })}
                                                 className="hidden"
-                                                checked={itemCondition === condition}
                                             />
                                             <span>{condition === 'NEW' ? 'Новое' : condition === 'USED' ? 'Б/у' : 'Купли/Продажа'}</span>
                                         </div>
                                     ))}
-                                    {errors.itemCondition && <p className="error-text">{errors.itemCondition.message}</p>}
                                 </div>
                             </div>
-                            <div className="input relative">
+                            <div className="input">
                                 <label>Название</label>
                                 <input {...register('title', { required: 'Это поле обязательно' })} />
-                                {title && (
-                                    <icons.close
-                                        className="absolute right-2 top-10 cursor-pointer"
-                                        onClick={() => handleClearField('title')}
-                                    />
-                                )}
-                                {errors.title && <p className="error-text">{errors.title.message}</p>}
                             </div>
-                            <div className="input relative description">
+                            <div className="input description">
                                 <label>Описание</label>
                                 <textarea {...register('description')} />
-                                {description && (
-                                    <icons.close
-                                        className="absolute right-2 top-10 cursor-pointer"
-                                        onClick={() => handleClearField('description')}
-                                    />
-                                )}
                             </div>
                             <div className="phone-date-container">
-                                <div className="input relative">
+                                <div className="input">
                                     <label>Цена</label>
                                     <input
                                         type="text"
@@ -293,15 +309,8 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
                                             setFormattedPrice(raw);
                                         }}
                                     />
-                                    {formattedPrice && (
-                                        <icons.close
-                                            className="absolute right-2 top-10 cursor-pointer"
-                                            onClick={() => handleClearField('price')}
-                                        />
-                                    )}
-                                    {errors.price && <p className="error-text">{errors.price.message}</p>}
                                 </div>
-                                <div className="input relative">
+                                <div className="input">
                                     <label>Количество</label>
                                     <input
                                         type="text"
@@ -319,27 +328,13 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
                                             setFormattedQuantity(raw);
                                         }}
                                     />
-                                    {formattedQuantity && (
-                                        <icons.close
-                                            className="absolute right-2 top-10 cursor-pointer"
-                                            onClick={() => handleClearField('quantity')}
-                                        />
-                                    )}
-                                    {errors.quantity && <p className="error-text">{errors.quantity.message}</p>}
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div className="input relative">
+                    <div className="input">
                         <label>Адрес</label>
                         <input {...register('address', { required: 'Это поле обязательно' })} />
-                        {address && (
-                            <icons.close
-                                className="absolute right-2 top-10 cursor-pointer"
-                                onClick={() => handleClearField('address')}
-                            />
-                        )}
-                        {errors.address && <p className="error-text">{errors.address.message}</p>}
                     </div>
                 </div>
                 <div className="button-container">
@@ -357,6 +352,12 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
                 {(Object.keys(errors).length > 0 || formError) && (
                     <div className="error-block">
                         <p className="error-text">{formError || getErrorMessage(errors)}</p>
+                    </div>
+                )}
+                {notificationState !== 'hidden' && (
+                    <div className={`notification ${notificationState}`}>
+                        <img src={successIcon} alt="notification" />
+                        <span>{notificationMessage}</span>
                     </div>
                 )}
             </form>

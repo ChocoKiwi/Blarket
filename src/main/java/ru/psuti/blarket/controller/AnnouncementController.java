@@ -1,4 +1,3 @@
-// AnnouncementController.java
 package ru.psuti.blarket.controller;
 
 import lombok.RequiredArgsConstructor;
@@ -20,9 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Контроллер для управления объявлениями (создание, обновление, удаление, получение).
- */
 @RestController
 @RequestMapping("/api/announcements")
 @RequiredArgsConstructor
@@ -33,9 +29,6 @@ public class AnnouncementController {
 
     private final AnnouncementService announcementService;
 
-    /**
-     * Создает новое объявление.
-     */
     @PostMapping
     public ResponseEntity<?> createAnnouncement(@RequestBody CreateAnnouncementDTO dto, @AuthenticationPrincipal User user) {
         if (user == null) {
@@ -51,9 +44,6 @@ public class AnnouncementController {
         }
     }
 
-    /**
-     * Сохраняет объявление как черновик.
-     */
     @PostMapping("/draft")
     public ResponseEntity<?> createDraft(@RequestBody CreateAnnouncementDTO dto, @AuthenticationPrincipal User user) {
         if (user == null) {
@@ -69,9 +59,6 @@ public class AnnouncementController {
         }
     }
 
-    /**
-     * Обновляет существующее объявление.
-     */
     @PutMapping("/{id}")
     public ResponseEntity<?> updateAnnouncement(@PathVariable Long id, @RequestBody UpdateAnnouncementDTO dto, @AuthenticationPrincipal User user) {
         if (user == null) {
@@ -87,9 +74,6 @@ public class AnnouncementController {
         }
     }
 
-    /**
-     * Сохраняет обновление как черновик.
-     */
     @PutMapping("/{id}/draft")
     public ResponseEntity<?> updateDraft(@PathVariable Long id, @RequestBody UpdateAnnouncementDTO dto, @AuthenticationPrincipal User user) {
         if (user == null) {
@@ -105,9 +89,6 @@ public class AnnouncementController {
         }
     }
 
-    /**
-     * Удаляет объявление.
-     */
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteAnnouncement(@PathVariable Long id, @AuthenticationPrincipal User user) {
         if (user == null) {
@@ -123,27 +104,34 @@ public class AnnouncementController {
         }
     }
 
-    /**
-     * Архивирует объявление.
-     */
-    @PutMapping("/{id}/archive")
-    public ResponseEntity<?> archiveAnnouncement(@PathVariable Long id, @AuthenticationPrincipal User user) {
+    @PutMapping("/{id}/status")
+    public ResponseEntity<?> updateStatus(@PathVariable Long id, @RequestBody Map<String, String> request, @AuthenticationPrincipal User user) {
         if (user == null) {
-            LOGGER.warn("Неавторизованный доступ к архивированию объявления");
+            LOGGER.warn("Неавторизованный доступ к изменению статуса объявления");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
         try {
-            announcementService.archiveAnnouncement(id, user);
-            return ResponseEntity.noContent().build();
+            String status = request.get("status");
+            Announcement announcement;
+            switch (status.toUpperCase()) {
+                case "ARCHIVED":
+                    announcementService.archiveAnnouncement(id, user);
+                    return ResponseEntity.noContent().build();
+                case "ACTIVE":
+                    announcement = announcementService.publishAnnouncement(id, user);
+                    return ResponseEntity.ok(announcement);
+                case "RESTORED":
+                    announcement = announcementService.restoreAnnouncement(id, user);
+                    return ResponseEntity.ok(announcement);
+                default:
+                    return ResponseEntity.badRequest().body(Map.of("message", "Недопустимый статус"));
+            }
         } catch (Exception e) {
-            LOGGER.error("Ошибка при архивировании объявления с ID {}: {}", id, e.getMessage(), e);
+            LOGGER.error("Ошибка при изменении статуса объявления с ID {}: {}", id, e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 
-    /**
-     * Получает список объявлений текущего пользователя по статусу.
-     */
     @GetMapping
     public ResponseEntity<?> getAnnouncements(@AuthenticationPrincipal User user, @RequestParam(required = false) String status) {
         if (user == null) {
@@ -154,13 +142,12 @@ public class AnnouncementController {
             List<AnnouncementDTO> announcements;
             if (status != null && !status.isEmpty()) {
                 if (status.contains(",")) {
-                    // Обработка множественных статусов
                     List<Announcement.Status> statuses = Arrays.stream(status.split(","))
                             .map(String::trim)
                             .map(String::toUpperCase)
                             .map(Announcement.Status::valueOf)
                             .collect(Collectors.toList());
-                    announcements = announcementService.getAnnouncementsByUserAndStatus(user, null); // Передаём null, логика в сервисе
+                    announcements = announcementService.getAnnouncementsByUserAndStatus(user, null);
                 } else {
                     Announcement.Status announcementStatus = Announcement.Status.valueOf(status.toUpperCase());
                     announcements = announcementService.getAnnouncementsByUserAndStatus(user, announcementStatus);
@@ -178,9 +165,6 @@ public class AnnouncementController {
         }
     }
 
-    /**
-     * Получает объявление по ID для редактирования.
-     */
     @GetMapping("/{id}")
     public ResponseEntity<?> getAnnouncementById(@PathVariable Long id, @AuthenticationPrincipal User user) {
         if (user == null) {
@@ -196,9 +180,6 @@ public class AnnouncementController {
         }
     }
 
-    /**
-     * Получает объявления по категории (включая подкатегории).
-     */
     @GetMapping("/categories/{categoryId}")
     public ResponseEntity<?> getAnnouncementsByCategory(@PathVariable Long categoryId) {
         try {

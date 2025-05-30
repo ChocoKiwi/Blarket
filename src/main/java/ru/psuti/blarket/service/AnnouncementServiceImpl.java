@@ -241,4 +241,47 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             return dto;
         }).collect(Collectors.toList());
     }
+
+    @Override
+    public Announcement publishAnnouncement(Long id, User user) {
+        log.info("Публикация объявления с ID: {} для пользователя с email: {}", id, user.getEmail());
+        Announcement announcement = announcementRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException(ERROR_NOT_FOUND));
+        if (!announcement.getUser().getId().equals(user.getId())) {
+            log.warn("Попытка публикации объявления с ID: {} пользователем без прав: {}", id, user.getEmail());
+            throw new RuntimeException(ERROR_NOT_AUTHORIZED);
+        }
+        if (announcement.getStatus() != Announcement.Status.DRAFT) {
+            throw new IllegalStateException("Только черновики могут быть опубликованы");
+        }
+        announcement.setStatus(determineStatus(announcement));
+        announcement.setUpdatedAt(LocalDateTime.now());
+        return announcementRepository.save(announcement);
+    }
+
+    @Override
+    public Announcement restoreAnnouncement(Long id, User user) {
+        log.info("Восстановление объявления с ID: {} для пользователя с email: {}", id, user.getEmail());
+        Announcement announcement = announcementRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException(ERROR_NOT_FOUND));
+        if (!announcement.getUser().getId().equals(user.getId())) {
+            log.warn("Попытка восстановления объявления с ID: {} пользователем без прав: {}", id, user.getEmail());
+            throw new RuntimeException(ERROR_NOT_AUTHORIZED);
+        }
+        if (announcement.getStatus() != Announcement.Status.ARCHIVED) {
+            throw new IllegalStateException("Только архивированные объявления могут быть восстановлены");
+        }
+        announcement.setStatus(determineStatus(announcement));
+        announcement.setUpdatedAt(LocalDateTime.now());
+        return announcementRepository.save(announcement);
+    }
+
+    private Announcement.Status determineStatus(Announcement announcement) {
+        if (announcement.getPrice() != null && announcement.getPrice().compareTo(BUSINESS_PRICE_THRESHOLD) > 0 ||
+                announcement.getCondition() == Announcement.Condition.BUYSELL ||
+                (announcement.getQuantity() != null && announcement.getQuantity() > BUSINESS_QUANTITY_THRESHOLD)) {
+            return Announcement.Status.BUSINESS;
+        }
+        return Announcement.Status.ACTIVE;
+    }
 }
