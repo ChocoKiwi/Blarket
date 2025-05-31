@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
-import './App.scss'; // Отдельный CSS для стилей
+import '../../App.scss'; // Отдельный CSS для стилей
 
 const ProductCard = ({ id, imageUrl, title, authorName, price, condition }) => {
     return (

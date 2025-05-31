@@ -9,7 +9,6 @@ import AnnouncementsList from '../comon/AnnouncementsList';
 import AnnouncementCard from '../comon/AnnouncementCard'; // Добавляем импорт
 import UserAvatar from '../../assets/icons/user-avatar.svg';
 import icons from '../../assets/icons/icons';
-import ProfileProductList from "../comon/ProfileProductList";
 
 const MyAds = () => <div>Мои объявления</div>;
 
@@ -172,7 +171,6 @@ function Profile({ onLogout }) {
                     <Route path="/ads/edit-form/:id" element={<CreateAnnouncement user={user} setUser={setUser} onLogout={onLogout} isEditMode={true}/>} />
                     <Route path="/ads" element={<AnnouncementsList user={user} setUser={setUser} onLogout={onLogout}/>} />
                     <Route path="/ads/:id" element={<AnnouncementCard/>} /> {/* Добавляем маршрут */}
-                    <Route path="/:id" element={<ProfileProductList/>} user={user} setUser={setUser} onLogout={onLogout}/>
                 </Routes>
             </div>
             <ProfileMenu user={user} handleLogout={handleLogout} handleAvatarChange={handleAvatarChange}/>
