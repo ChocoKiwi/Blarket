@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Profile from './pages/Profile';
+import Login from './components/pages/Login';
+import Register from './components/pages/Register';
+import Profile from './components/pages/Profile';
 import api from './api';
 import './App.scss';
 
@@ -44,17 +44,17 @@ function App() {
 
     return (
         <Router>
-                <Routes>
-                    <Route path="/login" element={!auth ? <Login onLogin={onLogin} onSwitchToRegister={() => {}} /> : <Navigate to="/profile/info" />} />
-                    <Route path="/register" element={!auth ? <Register onRegister={onRegister} onSwitchToLogin={() => {}} /> : <Navigate to="/profile" />} />
-                    <Route path="/profile/*" element={auth ? <Profile onLogout={onLogout} /> : <Navigate to="/login" />} />
-                    <Route path="/home" element={auth ? <Home /> : <Navigate to="/login" />} />
-                    <Route path="/messages" element={auth ? <Messages /> : <Navigate to="/login" />} />
-                    <Route path="/cart" element={auth ? <Cart /> : <Navigate to="/login" />} />
-                    <Route path="/notifications" element={auth ? <Notifications /> : <Navigate to="/login" />} />
-                    <Route path="/settings" element={auth ? <Settings /> : <Navigate to="/login" />} />
-                    <Route path="/" element={auth ? <Home /> : <Navigate to="/login" />} />
-                </Routes>
+            <Routes>
+                <Route path="/login" element={!auth ? <Login onLogin={onLogin} onSwitchToRegister={() => {}} /> : <Navigate to="/profile/info" />} />
+                <Route path="/register" element={!auth ? <Register onRegister={onRegister} onSwitchToLogin={() => {}} /> : <Navigate to="/profile" />} />
+                <Route path="/profile/*" element={auth ? <Profile onLogout={onLogout} /> : <Navigate to="/login" />} />
+                <Route path="/home" element={auth ? <Home /> : <Navigate to="/login" />} />
+                <Route path="/messages" element={auth ? <Messages /> : <Navigate to="/login" />} />
+                <Route path="/cart" element={auth ? <Cart /> : <Navigate to="/login" />} />
+                <Route path="/notifications" element={auth ? <Notifications /> : <Navigate to="/login" />} />
+                <Route path="/settings" element={auth ? <Settings /> : <Navigate to="/login" />} />
+                <Route path="/" element={auth ? <Home /> : <Navigate to="/login" />} />
+            </Routes>
         </Router>
     );
 }

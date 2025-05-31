@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
-import api from '../api';
-import successIcon from "../assets/icons/sucsses.svg";
+import api from '../../api';
+import successIcon from "../../assets/icons/sucsses.svg";
 import { useNavigate } from 'react-router-dom';
 
 function EditProfile({ onLogout, setUser, user }) {

@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate, Routes, Route } from 'react-router-dom';
-import api from '../api';
-import Header from '../components/Header';
-import EditProfile from '../components/EditProfile';
-import CategorySelector from '../components/CategorySelector';
-import CreateAnnouncement from '../components/CreateAnnouncement';
-import AnnouncementsList from '../components/AnnouncementsList';
-import UserAvatar from '../assets/icons/user-avatar.svg';
-import icons from '../assets/icons/icons';
+import api from '../../api';
+import Header from '../comon/Header';
+import EditProfile from '../comon/EditProfile';
+import CategorySelector from '../comon/CategorySelector';
+import CreateAnnouncement from '../comon/CreateAnnouncement';
+import AnnouncementsList from '../comon/AnnouncementsList';
+import AnnouncementCard from '../comon/AnnouncementCard'; // Добавляем импорт
+import UserAvatar from '../../assets/icons/user-avatar.svg';
+import icons from '../../assets/icons/icons';
+import ProfileProductList from "../comon/ProfileProductList";
 
 const MyAds = () => <div>Мои объявления</div>;
 
@@ -159,19 +161,21 @@ function Profile({ onLogout }) {
 
     return (
         <div className="main-container">
-            <Header user={user} setUser={setUser} />
+            <Header user={user} setUser={setUser}/>
             <div className="profile-content">
                 <Routes>
-                    <Route path="/" element={<EditProfile user={user} setUser={setUser} onLogout={onLogout} />} />
-                    <Route path="/info" element={<EditProfile user={user} setUser={setUser} onLogout={onLogout} />} />
-                    <Route path="/ads/select-category" element={<CategorySelector />} />
-                    <Route path="/ads/create" element={<CreateAnnouncement user={user} setUser={setUser} onLogout={onLogout} />} />
-                    <Route path="/ads/edit/:id" element={<CategorySelector isEditMode={true} announcementId={useLocation().pathname.split('/').pop()} />} />
-                    <Route path="/ads/edit-form/:id" element={<CreateAnnouncement user={user} setUser={setUser} onLogout={onLogout} isEditMode={true} />} />
-                    <Route path="/ads" element={<AnnouncementsList user={user} setUser={setUser} onLogout={onLogout} />} />
+                    <Route path="/" element={<EditProfile user={user} setUser={setUser} onLogout={onLogout}/>} />
+                    <Route path="/info" element={<EditProfile user={user} setUser={setUser} onLogout={onLogout}/>} />
+                    <Route path="/ads/select-category" element={<CategorySelector/>} />
+                    <Route path="/ads/create" element={<CreateAnnouncement user={user} setUser={setUser} onLogout={onLogout}/>} />
+                    <Route path="/ads/edit/:id" element={<CategorySelector isEditMode={true} announcementId={useLocation().pathname.split('/').pop()}/>} />
+                    <Route path="/ads/edit-form/:id" element={<CreateAnnouncement user={user} setUser={setUser} onLogout={onLogout} isEditMode={true}/>} />
+                    <Route path="/ads" element={<AnnouncementsList user={user} setUser={setUser} onLogout={onLogout}/>} />
+                    <Route path="/ads/:id" element={<AnnouncementCard/>} /> {/* Добавляем маршрут */}
+                    <Route path="/:id" element={<ProfileProductList/>} user={user} setUser={setUser} onLogout={onLogout}/>
                 </Routes>
             </div>
-            <ProfileMenu user={user} handleLogout={handleLogout} handleAvatarChange={handleAvatarChange} />
+            <ProfileMenu user={user} handleLogout={handleLogout} handleAvatarChange={handleAvatarChange}/>
         </div>
     );
 }

@@ -1,9 +1,9 @@
 // AnnouncementsList.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../api';
-import icons from '../assets/icons/icons';
-import successIcon from "../assets/icons/sucsses.svg";
+import api from '../../api';
+import icons from '../../assets/icons/icons';
+import successIcon from "../../assets/icons/sucsses.svg";
 
 const AnnouncementsList = () => {
     const [data, setData] = useState([]);
@@ -237,57 +237,75 @@ const AnnouncementsList = () => {
                     {data.map((a) => (
                         <div key={a.id} className="container-product">
                             {a.imageUrls?.length > 0 && (
-                                <div className="image-container">
-                                    <img src={a.imageUrls[0]} alt={`Preview ${a.id}`} className="preview-image" />
-                                </div>
+                                <Link to={`/profile/ads/${a.id}`} className="image-container">
+                                    <img src={a.imageUrls[0]} alt={`Preview ${a.id}`} className="preview-image"/>
+                                </Link>
                             )}
                             <div className="product-desc">
                                 <div className="header-product">
                                     <div className="header-product title-quantity">
-                                        <h3>{a.title}</h3>
+                                        <Link to={`/profile/ads/${a.id}`}>
+                                            <h3>{a.title}</h3>
+                                        </Link>
                                         <p>Осталось в наличии: {a.quantity === 1 ? '1 шт.' : `${a.quantity} шт.`}</p>
                                     </div>
                                     <div className="icon-dots" ref={menuRef}>
-                                        <div className="nav-link" onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === a.id ? null : a.id); }}>
-                                            <icons.dots className="menu-icon" />
+                                        <div className="nav-link" onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenMenu(openMenu === a.id ? null : a.id);
+                                        }}>
+                                            <icons.dots className="menu-icon"/>
                                         </div>
                                         {openMenu === a.id && (
                                             <div className="popup">
                                                 <Link to={`/profile/ads/edit/${a.id}`} className="nav-link">
-                                                    <icons.pen className="menu-icon" /> Изменить объявление
+                                                    <icons.pen className="menu-icon"/>
+                                                    Изменить объявление
                                                 </Link>
                                                 {a.status === 'ACTIVE' && (
-                                                    <div className="nav-link" onClick={() => handleStatusChange(a.id, 'ARCHIVED')}>
-                                                        <icons.archive className="menu-icon" /> Переместить в архив
+                                                    <div className="nav-link"
+                                                         onClick={() => handleStatusChange(a.id, 'ARCHIVED')}>
+                                                        <icons.archive className="menu-icon"/>
+                                                        Переместить в архив
                                                     </div>
                                                 )}
                                                 {a.status === 'BUSINESS' && (
                                                     <>
                                                         <Link to={`/announcements/stats/${a.id}`} className="nav-link">
-                                                            <icons.chart className="menu-icon" /> Общая статистика
+                                                            <icons.chart className="menu-icon"/>
+                                                            Общая статистика
                                                         </Link>
-                                                        <div className="nav-link" onClick={() => handleStatusChange(a.id, 'ARCHIVED')}>
-                                                            <icons.archive className="menu-icon" /> Переместить в архив
+                                                        <div className="nav-link"
+                                                             onClick={() => handleStatusChange(a.id, 'ARCHIVED')}>
+                                                            <icons.archive className="menu-icon"/>
+                                                            Переместить в архив
                                                         </div>
                                                     </>
                                                 )}
                                                 {a.status === 'DRAFT' && (
                                                     <>
-                                                        <div className="nav-link" onClick={() => handleStatusChange(a.id, 'ACTIVE')}>
-                                                            <icons.publish className="menu-icon" /> Опубликовать
+                                                        <div className="nav-link"
+                                                             onClick={() => handleStatusChange(a.id, 'ACTIVE')}>
+                                                            <icons.publish className="menu-icon"/>
+                                                            Опубликовать
                                                         </div>
-                                                        <div className="nav-link" onClick={() => handleStatusChange(a.id, 'ARCHIVED')}>
-                                                            <icons.archive className="menu-icon" /> Переместить в архив
+                                                        <div className="nav-link"
+                                                             onClick={() => handleStatusChange(a.id, 'ARCHIVED')}>
+                                                            <icons.archive className="menu-icon"/>
+                                                            Переместить в архив
                                                         </div>
                                                     </>
                                                 )}
                                                 {a.status === 'ARCHIVED' && (
                                                     <>
-                                                        <div className="nav-link" onClick={() => handleStatusChange(a.id, 'RESTORED')}>
-                                                            <icons.rest className="menu-icon" /> Восстановить
+                                                        <div className="nav-link"
+                                                             onClick={() => handleStatusChange(a.id, 'RESTORED')}>
+                                                            <icons.rest className="menu-icon"/>
+                                                            Восстановить
                                                         </div>
                                                         <div className="nav-link" onClick={() => handleDelete(a.id)}>
-                                                            <icons.delete className="menu-icon" /> Удалить
+                                                            <icons.delete className="menu-icon"/>
+                                                            Удалить
                                                         </div>
                                                     </>
                                                 )}
@@ -304,10 +322,12 @@ const AnnouncementsList = () => {
                                     </div>
                                     <div className="stats">
                                         <p>
-                                            <icons.eye className="menu-icon" /> {a.views}
+                                            <icons.eye className="menu-icon"/>
+                                            {a.views}
                                         </p>
                                         <p>
-                                            <icons.commentCount className="menu-icon" /> {a.commentsCount}
+                                            <icons.commentCount className="menu-icon"/>
+                                            {a.commentsCount}
                                         </p>
                                     </div>
                                 </div>
@@ -318,7 +338,7 @@ const AnnouncementsList = () => {
             )}
             {notificationState !== 'hidden' && (
                 <div className={`notification ${notificationState}`}>
-                    <img src={successIcon} alt="notification" />
+                    <img src={successIcon} alt="notification"/>
                     <span>{notificationMessage}</span>
                 </div>
             )}

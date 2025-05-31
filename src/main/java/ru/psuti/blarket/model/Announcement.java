@@ -20,6 +20,7 @@ public class Announcement {
     private Long id;
 
     private String title;
+    @Column(columnDefinition = "LONGTEXT")
     private String description;
     private BigDecimal price;
 

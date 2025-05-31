@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import api from '../api';
-import panaImage from '../assets/img/pana.svg';
+import api from '../../api';
+import panaImage from '../../assets/img/pana.svg';
 
 function Login({ onLogin }) {
     const { register, handleSubmit, formState: { errors }, watch } = useForm();

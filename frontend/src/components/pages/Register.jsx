@@ -1,9 +1,9 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import api from '../api';
-import '../App.scss';
-import panaImage from '../assets/img/pana.svg';
+import api from '../../api';
+import '../../App.scss';
+import panaImage from '../../assets/img/pana.svg';
 
 function Register({ onRegister }) {
     const { register, handleSubmit, watch, formState: { errors } } = useForm();

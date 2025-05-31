@@ -11,9 +11,12 @@ import ru.psuti.blarket.dto.AnnouncementDTO;
 import ru.psuti.blarket.dto.CreateAnnouncementDTO;
 import ru.psuti.blarket.dto.UpdateAnnouncementDTO;
 import ru.psuti.blarket.model.Announcement;
+import ru.psuti.blarket.model.Role;
 import ru.psuti.blarket.model.User;
 import ru.psuti.blarket.service.AnnouncementService;
+import ru.psuti.blarket.repository.UserRepository; // Добавьте зависимость
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -26,8 +29,45 @@ public class AnnouncementController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AnnouncementController.class);
     private static final String ERROR_UNAUTHORIZED = "Неавторизован";
+    private static final String ERROR_BUSINESS_RESTRICTED = "Обычные пользователи не могут создавать бизнес-объявления (условие: BUYSELL, цена ≥ 100,000 или количество ≥ 35)";
 
     private final AnnouncementService announcementService;
+    private final UserRepository userRepository; // Добавьте репозиторий для загрузки пользователя
+
+    private boolean isBusinessAnnouncement(CreateAnnouncementDTO dto) {
+        boolean isBusiness = (dto.getPrice() != null && new BigDecimal(String.valueOf(dto.getPrice())).compareTo(new BigDecimal("100000")) >= 0) ||
+                (dto.getQuantity() != null && dto.getQuantity() >= 35) ||
+                (dto.getItemCondition() == Announcement.Condition.BUYSELL);
+        LOGGER.debug("Проверка бизнес-объявления: condition={}, price={}, quantity={}, isBusiness={}",
+                dto.getItemCondition(), dto.getPrice(), dto.getQuantity(), isBusiness);
+        return isBusiness;
+    }
+
+    private boolean isBusinessAnnouncement(UpdateAnnouncementDTO dto) {
+        boolean isBusiness = (dto.getPrice() != null && new BigDecimal(String.valueOf(dto.getPrice())).compareTo(new BigDecimal("100000")) >= 0) ||
+                (dto.getQuantity() != null && dto.getQuantity() >= 35) ||
+                (dto.getItemCondition() == Announcement.Condition.BUYSELL);
+        LOGGER.debug("Проверка бизнес-объявления: condition={}, price={}, quantity={}, isBusiness={}",
+                dto.getItemCondition(), dto.getPrice(), dto.getQuantity(), isBusiness);
+        return isBusiness;
+    }
+
+    private User refreshUserFromDB(User user) {
+        if (user == null || user.getEmail() == null) {
+            LOGGER.warn("Пользователь или email отсутствует в контексте аутентификации");
+            return null;
+        }
+        return userRepository.findByEmail(user.getEmail())
+                .map(refreshedUser -> {
+                    LOGGER.info("Обновленные данные пользователя из БД: email={}, roles={}",
+                            refreshedUser.getEmail(), refreshedUser.getRoles());
+                    return refreshedUser;
+                })
+                .orElseGet(() -> {
+                    LOGGER.warn("Пользователь с email {} не найден в БД", user.getEmail());
+                    return user;
+                });
+    }
 
     @PostMapping
     public ResponseEntity<?> createAnnouncement(@RequestBody CreateAnnouncementDTO dto, @AuthenticationPrincipal User user) {
@@ -35,8 +75,19 @@ public class AnnouncementController {
             LOGGER.warn("Неавторизованный доступ к созданию объявления");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
+        // Принудительно обновляем данные пользователя из БД
+        User refreshedUser = refreshUserFromDB(user);
+        if (refreshedUser == null) {
+            LOGGER.warn("Не удалось обновить данные пользователя для создания объявления");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        LOGGER.debug("Создание объявления пользователем: email={}, roles={}", refreshedUser.getEmail(), refreshedUser.getRoles());
+        if (isBusinessAnnouncement(dto) && !refreshedUser.getRoles().contains(Role.PRO) && !refreshedUser.getRoles().contains(Role.ADMIN)) {
+            LOGGER.warn("Пользователь с email {} и ролями {} пытается создать бизнес-объявление", refreshedUser.getEmail(), refreshedUser.getRoles());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ERROR_BUSINESS_RESTRICTED));
+        }
         try {
-            Announcement announcement = announcementService.createAnnouncement(dto, user, false);
+            Announcement announcement = announcementService.createAnnouncement(dto, refreshedUser, false);
             return ResponseEntity.status(HttpStatus.CREATED).body(announcement);
         } catch (Exception e) {
             LOGGER.error("Ошибка при создании объявления: {}", e.getMessage(), e);
@@ -50,8 +101,14 @@ public class AnnouncementController {
             LOGGER.warn("Неавторизованный доступ к созданию черновика");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
+        // Принудительно обновляем данные пользователя из БД
+        User refreshedUser = refreshUserFromDB(user);
+        if (refreshedUser == null) {
+            LOGGER.warn("Не удалось обновить данные пользователя для создания черновика");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
         try {
-            Announcement announcement = announcementService.createAnnouncement(dto, user, true);
+            Announcement announcement = announcementService.createAnnouncement(dto, refreshedUser, true);
             return ResponseEntity.status(HttpStatus.CREATED).body(announcement);
         } catch (Exception e) {
             LOGGER.error("Ошибка при создании черновика: {}", e.getMessage(), e);
@@ -65,8 +122,19 @@ public class AnnouncementController {
             LOGGER.warn("Неавторизованный доступ к обновлению объявления");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
+        // Принудительно обновляем данные пользователя из БД
+        User refreshedUser = refreshUserFromDB(user);
+        if (refreshedUser == null) {
+            LOGGER.warn("Не удалось обновить данные пользователя для обновления объявления");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        LOGGER.debug("Обновление объявления пользователем: email={}, roles={}", refreshedUser.getEmail(), refreshedUser.getRoles());
+        if (isBusinessAnnouncement(dto) && !refreshedUser.getRoles().contains(Role.PRO) && !refreshedUser.getRoles().contains(Role.ADMIN)) {
+            LOGGER.warn("Пользователь с email {} и ролями {} пытается обновить объявление до бизнес-статуса", refreshedUser.getEmail(), refreshedUser.getRoles());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ERROR_BUSINESS_RESTRICTED));
+        }
         try {
-            Announcement announcement = announcementService.updateAnnouncement(id, dto, user, false);
+            Announcement announcement = announcementService.updateAnnouncement(id, dto, refreshedUser, false);
             return ResponseEntity.ok(announcement);
         } catch (Exception e) {
             LOGGER.error("Ошибка при обновлении объявления с ID {}: {}", id, e.getMessage(), e);
@@ -80,8 +148,13 @@ public class AnnouncementController {
             LOGGER.warn("Неавторизованный доступ к обновлению черновика");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
+        // Принудительно обновляем данные пользователя из БД
+        User refreshedUser = refreshUserFromDB(user);
+        if (refreshedUser == null) {
+            LOGGER.warn("Не удалось обновить данные пользователя для обновления черновика");
+        }
         try {
-            Announcement announcement = announcementService.updateAnnouncement(id, dto, user, true);
+            Announcement announcement = announcementService.updateAnnouncement(id, dto, refreshedUser, true);
             return ResponseEntity.ok(announcement);
         } catch (Exception e) {
             LOGGER.error("Ошибка при обновлении черновика с ID {}: {}", id, e.getMessage(), e);
@@ -95,8 +168,14 @@ public class AnnouncementController {
             LOGGER.warn("Неавторизованный доступ к удалению объявления");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
+        // Принудительно обновляем данные пользователя из БД
+        User refreshedUser = refreshUserFromDB(user);
+        if (refreshedUser == null) {
+            LOGGER.warn("Не удалось обновить данные пользователя для удаления объявления");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
         try {
-            announcementService.deleteAnnouncement(id, user);
+            announcementService.deleteAnnouncement(id, refreshedUser);
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
             LOGGER.error("Ошибка при удалении объявления с ID {}: {}", id, e.getMessage(), e);
@@ -110,18 +189,24 @@ public class AnnouncementController {
             LOGGER.warn("Неавторизованный доступ к изменению статуса объявления");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
+        // Принудительно обновляем данные пользователя из БД
+        User refreshedUser = refreshUserFromDB(user);
+        if (refreshedUser == null) {
+            LOGGER.warn("Не удалось обновить данные пользователя для изменения статуса");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
         try {
             String status = request.get("status");
             Announcement announcement;
             switch (status.toUpperCase()) {
                 case "ARCHIVED":
-                    announcementService.archiveAnnouncement(id, user);
+                    announcementService.archiveAnnouncement(id, refreshedUser);
                     return ResponseEntity.noContent().build();
                 case "ACTIVE":
-                    announcement = announcementService.publishAnnouncement(id, user);
+                    announcement = announcementService.publishAnnouncement(id, refreshedUser);
                     return ResponseEntity.ok(announcement);
                 case "RESTORED":
-                    announcement = announcementService.restoreAnnouncement(id, user);
+                    announcement = announcementService.restoreAnnouncement(id, refreshedUser);
                     return ResponseEntity.ok(announcement);
                 default:
                     return ResponseEntity.badRequest().body(Map.of("message", "Недопустимый статус"));
@@ -138,6 +223,12 @@ public class AnnouncementController {
             LOGGER.warn("Неавторизованный доступ к получению объявлений");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
+        // Принудительно обновляем данные пользователя из БД
+        User refreshedUser = refreshUserFromDB(user);
+        if (refreshedUser == null) {
+            LOGGER.warn("Не удалось обновить данные пользователя для получения объявлений");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
         try {
             List<AnnouncementDTO> announcements;
             if (status != null && !status.isEmpty()) {
@@ -147,13 +238,13 @@ public class AnnouncementController {
                             .map(String::toUpperCase)
                             .map(Announcement.Status::valueOf)
                             .collect(Collectors.toList());
-                    announcements = announcementService.getAnnouncementsByUserAndStatus(user, null);
+                    announcements = announcementService.getAnnouncementsByUserAndStatus(refreshedUser, null);
                 } else {
                     Announcement.Status announcementStatus = Announcement.Status.valueOf(status.toUpperCase());
-                    announcements = announcementService.getAnnouncementsByUserAndStatus(user, announcementStatus);
+                    announcements = announcementService.getAnnouncementsByUserAndStatus(refreshedUser, announcementStatus);
                 }
             } else {
-                announcements = announcementService.getAnnouncementsByUserAndStatus(user, null);
+                announcements = announcementService.getAnnouncementsByUserAndStatus(refreshedUser, null);
             }
             return ResponseEntity.ok(announcements);
         } catch (IllegalArgumentException e) {
@@ -171,8 +262,14 @@ public class AnnouncementController {
             LOGGER.warn("Неавторизованный доступ к получению объявления с ID {}", id);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
+        // Принудительно обновляем данные пользователя из БД
+        User refreshedUser = refreshUserFromDB(user);
+        if (refreshedUser == null) {
+            LOGGER.warn("Не удалось обновить данные пользователя для получения объявления с ID {}", id);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
         try {
-            Announcement announcement = announcementService.getAnnouncementById(id, user);
+            Announcement announcement = announcementService.getAnnouncementById(id, refreshedUser);
             return ResponseEntity.ok(UpdateAnnouncementDTO.fromAnnouncement(announcement));
         } catch (Exception e) {
             LOGGER.error("Ошибка при получении объявления с ID {}: {}", id, e.getMessage(), e);

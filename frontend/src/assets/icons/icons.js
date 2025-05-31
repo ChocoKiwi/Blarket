@@ -17,6 +17,7 @@ import CommentCount from './solar_chat-square-like-bold.svg?react'
 import Archive from './solar_archive-linear.svg?react'
 import Publish from './solar_export-bold.svg?react'
 import Rest from './solar_restart-square-bold.svg?react'
+import Info from './solar_info-circle-bold.svg?react'
 
 
 const icons = {
@@ -38,7 +39,8 @@ const icons = {
     commentCount: CommentCount,
     archive: Archive,
     publish: Publish,
-    rest: Rest
+    rest: Rest,
+    info: Info
 };
 
 export default icons;

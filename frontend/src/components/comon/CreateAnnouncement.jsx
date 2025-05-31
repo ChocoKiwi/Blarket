@@ -1,11 +1,11 @@
-// CreateAnnouncement.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import api from '../api';
-import icons from '../assets/icons/icons';
+import api from '../../api';
+import icons from '../../assets/icons/icons';
 import imageCompression from 'browser-image-compression';
-import successIcon from '../assets/icons/sucsses.svg'; // Иконка для уведомлений
+import successIcon from '../../assets/icons/sucsses.svg';
+import info from '../../assets/icons/solar_info-circle-bold.svg';
 
 const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => {
     const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm({
@@ -15,7 +15,7 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
             price: '',
             quantity: '',
             address: '',
-            itemCondition: 'NEW', // Значение по умолчанию
+            itemCondition: 'NEW',
         },
     });
     const [imagePreviews, setImagePreviews] = useState([null, null, null]);
@@ -23,8 +23,10 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
     const [formError, setFormError] = useState(null);
     const [formattedPrice, setFormattedPrice] = useState('');
     const [formattedQuantity, setFormattedQuantity] = useState('');
-    const [notificationMessage, setNotificationMessage] = useState(''); // Для уведомлений
-    const [notificationState, setNotificationState] = useState('hidden'); // Для уведомлений
+    const [notificationMessage, setNotificationMessage] = useState('');
+    const [notificationState, setNotificationState] = useState('hidden');
+    const [isBusiness, setIsBusiness] = useState(false);
+    const [isRegularUser, setIsRegularUser] = useState(false);
 
     const navigate = useNavigate();
     const { id } = useParams();
@@ -32,14 +34,20 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
     const categoryId = state?.categoryId;
 
     const itemCondition = watch('itemCondition');
+    const price = watch('price');
+    const quantity = watch('quantity');
 
-    // Форматирование и очистка входных данных
+    const checkBusinessStatus = (condition, price, quantity) => {
+        const parsedPrice = price ? parseFloat(unformatInput(price)) : 0;
+        const parsedQuantity = quantity ? parseInt(unformatInput(quantity)) : 0;
+        return condition === 'BUYSELL' || parsedPrice >= 100000 || parsedQuantity >= 35;
+    };
+
     const formatPriceInput = (value) =>
         value ? value.toString().replace(/[^\d]/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₽' : '';
     const formatQuantityInput = (value) => (value ? value.toString().replace(/[^\d]/g, '') + ' шт' : '');
     const unformatInput = (value) => value.toString().replace(/[^\d]/g, '');
 
-    // Уведомления
     const showNotification = (title, action) => {
         const variations = [
             `Объявление "${title}" теперь ${action}!`,
@@ -54,7 +62,30 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
         setTimeout(() => setNotificationState('hidden'), 3500);
     };
 
-    // Загрузка данных для редактирования
+    useEffect(() => {
+        // Логирование для отладки
+        console.log('Данные пользователя:', user);
+        console.log('Роли пользователя:', user?.roles);
+
+        if (user && Array.isArray(user.roles)) {
+            const hasProRole = user.roles.includes('PRO');
+            const hasAdminRole = user.roles.includes('ADMIN');
+            // Пользователь считается "обычным", только если у него есть роль USER и нет PRO или ADMIN
+            setIsRegularUser(user.roles.includes('USER') && !hasProRole && !hasAdminRole);
+            console.log('Является ли пользователь PRO:', hasProRole);
+            console.log('Является ли пользователь обычным:', user.roles.includes('USER') && !hasProRole && !hasAdminRole);
+        } else {
+            // Если данные о пользователе или роли отсутствуют, считаем пользователя "обычным"
+            setIsRegularUser(true);
+            console.log('Данные о пользователе или роли отсутствуют, установлен isRegularUser: true');
+        }
+    }, [user]);
+
+    useEffect(() => {
+        setIsBusiness(checkBusinessStatus(itemCondition, price, quantity));
+        console.log('Бизнес-статус объявления:', checkBusinessStatus(itemCondition, price, quantity));
+    }, [itemCondition, price, quantity]);
+
     useEffect(() => {
         if (isEditMode && id) {
             const fetchAnnouncement = async () => {
@@ -66,7 +97,6 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
                     setValue('price', announcement.price || '');
                     setValue('quantity', announcement.quantity || '');
                     setValue('address', announcement.address || '');
-                    // Проверяем condition и устанавливаем допустимое значение
                     const validConditions = ['NEW', 'USED', 'BUYSELL'];
                     const condition = validConditions.includes(announcement.condition) ? announcement.condition : 'NEW';
                     setValue('itemCondition', condition, { shouldValidate: true });
@@ -88,7 +118,6 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
         }
     }, [id, isEditMode, setValue, navigate]);
 
-    // Отслеживание изменений цены и количества
     useEffect(() => {
         const subscription = watch((value, { name }) => {
             if (name === 'price') {
@@ -102,7 +131,6 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
         return () => subscription.unsubscribe();
     }, [watch]);
 
-    // Обработка загрузки изображений с сжатием
     const handleImageChange = async (index, file) => {
         if (file && file.type.startsWith('image/')) {
             try {
@@ -147,7 +175,6 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
         setDragOver((prev) => prev.map((val, i) => (i === index ? false : val)));
     };
 
-    // Отправка формы
     const onSubmit = async (data, isDraft = false) => {
         if (!categoryId && !isEditMode) {
             setFormError('Выберите категорию');
@@ -191,7 +218,6 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
         }
     };
 
-    // Сообщения об ошибках
     const getErrorMessage = (errors) => {
         if (errors.title) return 'Поле "Название" обязательно.';
         if (errors.address) return 'Поле "Адрес" обязательно.';
@@ -205,6 +231,20 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
         <div className="form-container">
             <form onSubmit={handleSubmit((data) => onSubmit(data, false))}>
                 <h2>{isEditMode ? 'Редактировать объявление' : 'Создать объявление'}</h2>
+                {isRegularUser && isBusiness && (
+                    <div className="info-container">
+                        <img src={info} alt="Info" className="info-icon" />
+                        <div className="info-content">
+                            <div className="info-text">
+                                <h4>Бизнес-объявление</h4>
+                                <p>
+                                    Доступно только для Предпринимателей. Объявления данного типа позволяют следить за статистикой объявления, а также продавать дорогие товары в большом количестве
+                                </p>
+                            </div>
+                            <a href="/profile/subscription" className="upgrade-link">Стать предпринимателем</a>
+                        </div>
+                    </div>
+                )}
                 <div className="annoucement">
                     <div className="update-container for-ads">
                         <div className="input three-image-container">
@@ -338,7 +378,11 @@ const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => 
                     </div>
                 </div>
                 <div className="button-container">
-                    <button type="submit" className="primary">
+                    <button
+                        type="submit"
+                        className="primary"
+                        disabled={isRegularUser && isBusiness}
+                    >
                         {isEditMode ? 'Изменить' : 'Опубликовать'}
                     </button>
                     <button

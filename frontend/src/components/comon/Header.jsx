@@ -1,9 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
-import api from '../api';
-import logoImage from '../assets/logo/short-logo.svg';
-import icons from '../assets/icons/icons';
-import userAvatar from "../assets/icons/user-avatar.svg";
+import api from '../../api';
+import logoImage from '../../assets/logo/short-logo.svg';
+import icons from '../../assets/icons/icons';
+import userAvatar from "../../assets/icons/user-avatar.svg";
 
 function Header({ user, setUser }) {
     const location = useLocation();
