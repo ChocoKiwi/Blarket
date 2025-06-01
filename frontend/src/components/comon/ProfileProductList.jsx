@@ -1,3 +1,4 @@
+// src/components/ui/ProfileProductList.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../../api';
@@ -15,11 +16,10 @@ const ProfileProductList = ({ user, onLogout }) => {
     const [selectedSort, setSelectedSort] = useState('самые популярные');
     const [selectedSortValue, setSelectedSortValue] = useState('popularity');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [selectedStatus, setSelectedStatus] = useState(null); // Для фильтрации ACTIVE,BUSINESS
+    const [selectedStatus, setSelectedStatus] = useState(null);
     const timeoutRef = useRef(null);
     const [userData, setUserData] = useState(null);
 
-    // Функция для получения текста состояния товара
     const getConditionText = (condition) => {
         switch (condition) {
             case 'NEW':
@@ -47,6 +47,7 @@ const ProfileProductList = ({ user, onLogout }) => {
         fetchUserData();
     }, [id]);
 
+    // Начальная загрузка объявлений
     useEffect(() => {
         const fetchAnnouncements = async () => {
             setLoading(true);
@@ -76,6 +77,11 @@ const ProfileProductList = ({ user, onLogout }) => {
         fetchAnnouncements();
     }, [id, selectedStatus, selectedSortValue, onLogout]);
 
+    // Обработка результатов поиска
+    const handleSearchResults = (searchResults) => {
+        setAnnouncements(searchResults);
+    };
+
     const handleOptionSelect = (option, value) => {
         setSelectedSort(option);
         setSelectedSortValue(value);
@@ -104,7 +110,7 @@ const ProfileProductList = ({ user, onLogout }) => {
     }, []);
 
     const handleStatusSelect = (status) => {
-        if (loading) return; // Block status change during loading
+        if (loading) return;
         setSelectedStatus(status);
     };
 
@@ -125,7 +131,11 @@ const ProfileProductList = ({ user, onLogout }) => {
 
     return (
         <div className="profile-product-list">
-            <SearchAndFilter />
+            <SearchAndFilter
+                userId={id}
+                onSearchResults={handleSearchResults}
+                selectedSortValue={selectedSortValue}
+            />
             <div className='flex'>
                 <div className='title-sort'>
                     <h2>Объявления пользователя</h2>

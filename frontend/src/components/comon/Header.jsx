@@ -40,7 +40,6 @@ function Header({ user, setUser }) {
                     { path: '/home', name: 'Главная', icon: 'home' },
                     { path: '/cart', name: 'Корзина', icon: 'cart' },
                     { path: '/messages', name: 'Сообщения', icon: 'messages' },
-                    { path: '/settings', name: 'Настройки', icon: 'settings' },
                     { path: '/notifications', name: 'Уведомления', icon: 'notifications' },
                 ].map(({ path, name, icon }) => (
                     <Link

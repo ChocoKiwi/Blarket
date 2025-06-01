@@ -17,9 +17,7 @@ import ru.psuti.blarket.service.AnnouncementService;
 import ru.psuti.blarket.repository.UserRepository; // Добавьте зависимость
 
 import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -92,6 +90,63 @@ public class AnnouncementController {
         } catch (Exception e) {
             LOGGER.error("Ошибка при создании объявления: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    private static final Set<String> STOP_WORDS = new HashSet<>(Arrays.asList(
+            "и", "или", "для", "в", "на", "по", "с", "у", "к", "от", "до", "из", "о", "об", "при", "без",
+            "а", "но", "если", "что", "как", "чтобы", "за", "над", "под", "про", "это", "этот", "эта", "эти"
+    ));
+
+    @GetMapping("/user/{userId}/search")
+    public ResponseEntity<?> searchAnnouncementsByUserAndTitle(
+            @PathVariable Long userId,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String sort) {
+        try {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+            List<AnnouncementDTO> announcements;
+            // Получаем все объявления пользователя с учетом сортировки
+            List<Announcement.Status> defaultStatuses = List.of(Announcement.Status.ACTIVE, Announcement.Status.BUSINESS);
+            announcements = announcementService.getAnnouncementsByUserAndStatusInSorted(user, defaultStatuses, sort);
+
+            // Фильтруем по запросу, если он есть
+            if (query != null && !query.trim().isEmpty()) {
+                String searchQuery = query.trim().toLowerCase();
+                // Используем LinkedHashSet для сохранения порядка и исключения дубликатов
+                LinkedHashSet<AnnouncementDTO> filteredAnnouncements = new LinkedHashSet<>();
+
+                // 1. Сначала ищем полное совпадение с запросом
+                for (AnnouncementDTO ann : announcements) {
+                    boolean titleMatch = ann.getTitle() != null && ann.getTitle().toLowerCase().contains(searchQuery);
+                    boolean categoryMatch = ann.getCategoryName() != null && ann.getCategoryName().toLowerCase().contains(searchQuery);
+                    if (titleMatch || categoryMatch) {
+                        filteredAnnouncements.add(ann);
+                    }
+                }
+
+                // 2. Разбиваем запрос на слова и ищем совпадения по каждому слову, исключая стоп-слова
+                String[] keywords = searchQuery.split("\\s+"); // Разделяем по пробелам
+                for (String keyword : keywords) {
+                    if (keyword.length() < 2 || STOP_WORDS.contains(keyword)) continue; // Пропускаем короткие слова и стоп-слова
+                    for (AnnouncementDTO ann : announcements) {
+                        boolean titleMatch = ann.getTitle() != null && ann.getTitle().toLowerCase().contains(keyword);
+                        boolean categoryMatch = ann.getCategoryName() != null && ann.getCategoryName().toLowerCase().contains(keyword);
+                        if (titleMatch || categoryMatch) {
+                            filteredAnnouncements.add(ann); // LinkedHashSet сохраняет порядок и исключает дубли
+                        }
+                    }
+                }
+
+                // Преобразуем LinkedHashSet обратно в список
+                announcements = filteredAnnouncements.stream().collect(Collectors.toList());
+            }
+
+            return ResponseEntity.ok(announcements);
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при поиске объявлений для пользователя с ID {}: {}", userId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Пользователь или объявления не найдены"));
         }
     }
 

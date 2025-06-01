@@ -12,7 +12,7 @@ const formatPrice = (price) => {
 
 const ProductCard = ({ id, imageUrl, title, authorName, price, condition }) => {
     return (
-        <Link to={`/announcement/${id}`} className="product-card">
+        <Link to={`/profile/ads/${id}`} className="product-card">
             <img src={imageUrl} alt={title} className="product-image" />
             <div className="product-main">
                 <div className='under-button'>
