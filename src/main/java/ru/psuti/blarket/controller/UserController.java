@@ -107,9 +107,10 @@ public class UserController {
         LOGGER.info("Запрос данных пользователя для email: {}", email);
         return userRepository.findByEmail(email)
                 .map(user -> {
-                    LOGGER.info("Данные пользователя: name={}, email={}, gender={}, phoneNumber={}, dateOfBirth={}, address={}, roles={}",
-                            user.getName(), user.getEmail(), user.getGender(), user.getPhoneNumber(), user.getDateOfBirth(), user.getAddress(), user.getRoles());
+                    LOGGER.info("Данные пользователя: id={}, name={}, email={}, gender={}, phoneNumber={}, dateOfBirth={}, address={}, roles={}",
+                            user.getId(), user.getName(), user.getEmail(), user.getGender(), user.getPhoneNumber(), user.getDateOfBirth(), user.getAddress(), user.getRoles());
                     Map<String, Object> userData = new HashMap<>();
+                    userData.put("id", user.getId()); // Добавляем id
                     userData.put("name", user.getName() != null ? user.getName() : "");
                     userData.put("email", user.getEmail() != null ? user.getEmail() : "");
                     userData.put("gender", user.getGender());

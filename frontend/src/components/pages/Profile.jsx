@@ -6,7 +6,8 @@ import EditProfile from '../comon/EditProfile';
 import CategorySelector from '../comon/CategorySelector';
 import CreateAnnouncement from '../comon/CreateAnnouncement';
 import AnnouncementsList from '../comon/AnnouncementsList';
-import AnnouncementCard from '../comon/AnnouncementCard'; // Добавляем импорт
+import AnnouncementCard from '../comon/AnnouncementCard';
+import ProfileProductList from '../comon/ProfileProductList';
 import UserAvatar from '../../assets/icons/user-avatar.svg';
 import icons from '../../assets/icons/icons';
 
@@ -84,13 +85,18 @@ function ProfileMenu({ user, handleLogout, handleAvatarChange }) {
                     Выйти из аккаунта
                 </a>
             </nav>
-            {location.pathname === '/profile/ads' && (
-                <div className="button-container">
+            <div className="button-container">
+                {location.pathname === '/profile/ads' && (
                     <Link to="/profile/ads/select-category" className="button">
                         Новое объявление
                     </Link>
-                </div>
-            )}
+                )}
+                {isInfoPage && (
+                    <Link to={`/profile/info/${user.id}`} className="button">
+                        Посмотреть профиль
+                    </Link>
+                )}
+            </div>
         </div>
     );
 }
@@ -165,12 +171,13 @@ function Profile({ onLogout }) {
                 <Routes>
                     <Route path="/" element={<EditProfile user={user} setUser={setUser} onLogout={onLogout}/>} />
                     <Route path="/info" element={<EditProfile user={user} setUser={setUser} onLogout={onLogout}/>} />
+                    <Route path="/info/:id" element={<ProfileProductList user={user} onLogout={onLogout}/>} />
                     <Route path="/ads/select-category" element={<CategorySelector/>} />
                     <Route path="/ads/create" element={<CreateAnnouncement user={user} setUser={setUser} onLogout={onLogout}/>} />
                     <Route path="/ads/edit/:id" element={<CategorySelector isEditMode={true} announcementId={useLocation().pathname.split('/').pop()}/>} />
                     <Route path="/ads/edit-form/:id" element={<CreateAnnouncement user={user} setUser={setUser} onLogout={onLogout} isEditMode={true}/>} />
                     <Route path="/ads" element={<AnnouncementsList user={user} setUser={setUser} onLogout={onLogout}/>} />
-                    <Route path="/ads/:id" element={<AnnouncementCard/>} /> {/* Добавляем маршрут */}
+                    <Route path="/ads/:id" element={<AnnouncementCard/>} />
                 </Routes>
             </div>
             <ProfileMenu user={user} handleLogout={handleLogout} handleAvatarChange={handleAvatarChange}/>

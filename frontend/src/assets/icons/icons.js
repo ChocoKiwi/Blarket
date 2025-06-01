@@ -19,7 +19,6 @@ import Publish from './solar_export-bold.svg?react'
 import Rest from './solar_restart-square-bold.svg?react'
 import Info from './solar_info-circle-bold.svg?react'
 
-
 const icons = {
     home: HomeIcon,
     messages: MessagesIcon,

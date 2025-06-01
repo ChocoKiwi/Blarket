@@ -286,4 +286,35 @@ public class AnnouncementController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
         }
     }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<?> getAnnouncementsByUserId(@PathVariable Long userId, @RequestParam(required = false) String status) {
+        try {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+            List<AnnouncementDTO> announcements;
+            if (status != null && !status.isEmpty()) {
+                if (status.contains(",")) {
+                    List<Announcement.Status> statuses = Arrays.stream(status.split(","))
+                            .map(String::trim)
+                            .map(String::toUpperCase)
+                            .map(Announcement.Status::valueOf)
+                            .collect(Collectors.toList());
+                    announcements = announcementService.getAnnouncementsByUserAndStatus(user, null);
+                } else {
+                    Announcement.Status announcementStatus = Announcement.Status.valueOf(status.toUpperCase());
+                    announcements = announcementService.getAnnouncementsByUserAndStatus(user, announcementStatus);
+                }
+            } else {
+                announcements = announcementService.getAnnouncementsByUserAndStatus(user, null);
+            }
+            return ResponseEntity.ok(announcements);
+        } catch (IllegalArgumentException e) {
+            LOGGER.error("Недопустимый статус: {}", status, e);
+            return ResponseEntity.badRequest().body(Map.of("message", "Недопустимый статус"));
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при получении объявлений для пользователя с ID {}: {}", userId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Пользователь или объявления не найдены"));
+        }
+    }
 }
