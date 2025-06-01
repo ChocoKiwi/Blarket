@@ -8,9 +8,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * DTO для представления данных объявления.
- */
 @Data
 public class AnnouncementDTO {
     private Long id;
@@ -27,5 +24,7 @@ public class AnnouncementDTO {
     private Float rating;
     private Long categoryId;
     private String categoryName;
-    private Announcement.Status status; // Новое поле
+    private Announcement.Status status;
+    private Long userId; // Новое поле
+    private String authorName; // Новое поле
 }

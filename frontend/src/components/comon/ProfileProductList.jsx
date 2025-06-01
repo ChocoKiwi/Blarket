@@ -8,7 +8,7 @@ import '../../App.scss';
 import icons from '../../assets/icons/icons';
 import check from '../../assets/icons/sucsses.svg';
 
-const ProfileProductList = ({ user, onLogout }) => {
+const ProfileProductList = ({ user, onLogout, isHomePage = false }) => {
     const { id } = useParams();
     const [announcements, setAnnouncements] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -19,6 +19,7 @@ const ProfileProductList = ({ user, onLogout }) => {
     const [selectedStatus, setSelectedStatus] = useState(null);
     const timeoutRef = useRef(null);
     const [userData, setUserData] = useState(null);
+    const isOwnProfile = !isHomePage && user && id && parseInt(id) === user.id; // Проверяем, свой ли профиль
 
     const getConditionText = (condition) => {
         switch (condition) {
@@ -34,27 +35,33 @@ const ProfileProductList = ({ user, onLogout }) => {
     };
 
     useEffect(() => {
-        const fetchUserData = async () => {
-            try {
-                const response = await api.get(`/user/${id}`, {
-                    withCredentials: true,
-                });
-                setUserData(response.data);
-            } catch (err) {
-                console.error('Ошибка загрузки данных пользователя:', err);
-            }
-        };
-        fetchUserData();
-    }, [id]);
+        if (!isHomePage) {
+            const fetchUserData = async () => {
+                try {
+                    const response = await api.get(`/user/${id}`, {
+                        withCredentials: true,
+                    });
+                    setUserData(response.data);
+                } catch (err) {
+                    console.error('Ошибка загрузки данных пользователя:', err);
+                }
+            };
+            fetchUserData();
+        }
+    }, [id, isHomePage]);
 
-    // Начальная загрузка объявлений
     useEffect(() => {
         const fetchAnnouncements = async () => {
             setLoading(true);
             try {
-                const url = selectedStatus
-                    ? `/announcements/user/${id}?status=${selectedStatus}&sort=${selectedSortValue}`
-                    : `/announcements/user/${id}?status=ACTIVE,BUSINESS&sort=${selectedSortValue}`;
+                let url;
+                if (isHomePage) {
+                    url = `/announcements/all-except-current?sort=${selectedSortValue}`;
+                } else {
+                    url = selectedStatus
+                        ? `/announcements/user/${id}?status=${selectedStatus}&sort=${selectedSortValue}`
+                        : `/announcements/user/${id}?status=ACTIVE,BUSINESS&sort=${selectedSortValue}`;
+                }
                 const response = await api.get(url, {
                     withCredentials: true,
                 });
@@ -75,9 +82,8 @@ const ProfileProductList = ({ user, onLogout }) => {
             }
         };
         fetchAnnouncements();
-    }, [id, selectedStatus, selectedSortValue, onLogout]);
+    }, [id, selectedStatus, selectedSortValue, onLogout, isHomePage]);
 
-    // Обработка результатов поиска
     const handleSearchResults = (searchResults) => {
         setAnnouncements(searchResults);
     };
@@ -131,14 +137,16 @@ const ProfileProductList = ({ user, onLogout }) => {
 
     return (
         <div className="profile-product-list">
-            <SearchAndFilter
-                userId={id}
-                onSearchResults={handleSearchResults}
-                selectedSortValue={selectedSortValue}
-            />
-            <div className='flex'>
-                <div className='title-sort'>
-                    <h2>Объявления пользователя</h2>
+            {!isHomePage && (
+                <SearchAndFilter
+                    userId={id}
+                    onSearchResults={handleSearchResults}
+                    selectedSortValue={selectedSortValue}
+                />
+            )}
+            <div className="flex">
+                <div className="title-sort">
+                    <h2>{isHomePage ? 'Все объявления' : 'Объявления пользователя'}</h2>
                     <div className="filter-sort-container">
                         <div
                             className="sort-container"
@@ -159,7 +167,7 @@ const ProfileProductList = ({ user, onLogout }) => {
                                 >
                                     <span className="sort-option-text">самые популярные</span>
                                     {selectedSort === 'самые популярные' && (
-                                        <img src={check} alt='icon' />
+                                        <img src={check} alt="icon" />
                                     )}
                                 </div>
                                 <div
@@ -169,7 +177,7 @@ const ProfileProductList = ({ user, onLogout }) => {
                                 >
                                     <span className="sort-option-text">самые новые</span>
                                     {selectedSort === 'самые новые' && (
-                                        <img src={check} alt='icon' />
+                                        <img src={check} alt="icon" />
                                     )}
                                 </div>
                                 <div
@@ -179,7 +187,7 @@ const ProfileProductList = ({ user, onLogout }) => {
                                 >
                                     <span className="sort-option-text">сначала дорогие</span>
                                     {selectedSort === 'сначала дорогие' && (
-                                        <img src={check} alt='icon' />
+                                        <img src={check} alt="icon" />
                                     )}
                                 </div>
                                 <div
@@ -189,7 +197,7 @@ const ProfileProductList = ({ user, onLogout }) => {
                                 >
                                     <span className="sort-option-text">сначала дешёвые</span>
                                     {selectedSort === 'сначала дешёвые' && (
-                                        <img src={check} alt='icon' />
+                                        <img src={check} alt="icon" />
                                     )}
                                 </div>
                                 <div
@@ -199,27 +207,33 @@ const ProfileProductList = ({ user, onLogout }) => {
                                 >
                                     <span className="sort-option-text">высокий рейтинг</span>
                                     {selectedSort === 'высокий рейтинг' && (
-                                        <img src={check} alt='icon' />
+                                        <img src={check} alt="icon" />
                                     )}
                                 </div>
                             </div>
                         </div>
-                        <div className="status-filter">
-                            <button
-                                className={`condition-chip ${selectedStatus === null ? 'selected' : ''} ${loading ? 'disabled' : ''}`}
-                                onClick={() => handleStatusSelect(null)}
-                                disabled={loading}
-                            >
-                                <span>Активные</span>
-                            </button>
-                            <button
-                                className={`condition-chip ${selectedStatus === 'SOLD' ? 'selected' : ''} ${loading ? 'disabled' : ''}`}
-                                onClick={() => handleStatusSelect('SOLD')}
-                                disabled={loading}
-                            >
-                                <span>Проданные</span>
-                            </button>
-                        </div>
+                        {!isHomePage && (
+                            <div className="status-filter">
+                                <button
+                                    className={`condition-chip ${selectedStatus === null ? 'selected' : ''} ${
+                                        loading ? 'disabled' : ''
+                                    }`}
+                                    onClick={() => handleStatusSelect(null)}
+                                    disabled={loading}
+                                >
+                                    <span>Активные</span>
+                                </button>
+                                <button
+                                    className={`condition-chip ${selectedStatus === 'SOLD' ? 'selected' : ''} ${
+                                        loading ? 'disabled' : ''
+                                    }`}
+                                    onClick={() => handleStatusSelect('SOLD')}
+                                    disabled={loading}
+                                >
+                                    <span>Проданные</span>
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
                 {announcements.length === 0 ? (
@@ -232,9 +246,10 @@ const ProfileProductList = ({ user, onLogout }) => {
                                 id={announcement.id}
                                 imageUrl={announcement.imageUrls?.[0] || ''}
                                 title={announcement.title}
-                                authorName={userData?.name || 'Без имени'}
+                                authorName={isHomePage ? announcement.authorName || 'Без имени' : userData?.name || 'Без имени'}
                                 price={announcement.price ? parseFloat(announcement.price) : 0}
                                 condition={getConditionText(announcement.condition)}
+                                isOwnProfile={isOwnProfile} // Передаем флаг
                             />
                         ))}
                     </div>

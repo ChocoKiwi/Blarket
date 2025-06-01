@@ -62,6 +62,8 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         dto.setRating(announcement.getRating());
         dto.setCategoryId(announcement.getCategory() != null ? announcement.getCategory().getId() : null);
         dto.setCategoryName(announcement.getCategory() != null ? announcement.getCategory().getName() : null);
+        dto.setUserId(announcement.getUser() != null ? announcement.getUser().getId() : null); // Устанавливаем userId
+        dto.setAuthorName(announcement.getUser() != null ? announcement.getUser().getName() : null); // Устанавливаем имя автора
         dto.setStatus(announcement.getStatus());
         return dto;
     }
@@ -273,6 +275,44 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         }
 
         // Применяем сортировку
+        announcements = announcements.stream()
+                .sorted(comparator)
+                .collect(Collectors.toList());
+
+        return announcements.stream()
+                .map(this::toAnnouncementDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<AnnouncementDTO> getAllAnnouncementsSorted(String sort) {
+        log.info("Получение всех объявлений с сортировкой: {}", sort);
+        List<Announcement> announcements = announcementRepository.findAll()
+                .stream()
+                .filter(ann -> ann.getStatus() == Announcement.Status.ACTIVE || ann.getStatus() == Announcement.Status.BUSINESS)
+                .collect(Collectors.toList());
+
+        // Сортировка объявлений
+        Comparator<Announcement> comparator;
+        switch (sort != null ? sort.toLowerCase() : "popularity") {
+            case "newest":
+                comparator = Comparator.comparing(Announcement::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()));
+                break;
+            case "expensive":
+                comparator = Comparator.comparing(Announcement::getPrice, Comparator.nullsLast(Comparator.reverseOrder()));
+                break;
+            case "cheapest":
+                comparator = Comparator.comparing(Announcement::getPrice, Comparator.nullsLast(Comparator.naturalOrder()));
+                break;
+            case "rating":
+                comparator = Comparator.comparing(Announcement::getRating, Comparator.nullsLast(Comparator.reverseOrder()));
+                break;
+            case "popularity":
+            default:
+                comparator = Comparator.comparing(Announcement::getViews, Comparator.nullsLast(Comparator.reverseOrder()));
+                break;
+        }
+
         announcements = announcements.stream()
                 .sorted(comparator)
                 .collect(Collectors.toList());

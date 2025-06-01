@@ -22,4 +22,5 @@ public interface AnnouncementService {
     List<AnnouncementDTO> getAnnouncementsByUserAndStatusIn(User user, List<Announcement.Status> statuses);
     // Новый метод с параметром сортировки
     List<AnnouncementDTO> getAnnouncementsByUserAndStatusInSorted(User user, List<Announcement.Status> statuses, String sort);
+    List<AnnouncementDTO> getAllAnnouncementsSorted(String sort);
 }

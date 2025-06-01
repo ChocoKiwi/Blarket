@@ -37,7 +37,7 @@ function Header({ user, setUser }) {
             </div>
             <nav className="nav">
                 {[
-                    { path: '/home', name: 'Главная', icon: 'home' },
+                    { path: '/', name: 'Главная', icon: 'home' },
                     { path: '/cart', name: 'Корзина', icon: 'cart' },
                     { path: '/messages', name: 'Сообщения', icon: 'messages' },
                     { path: '/notifications', name: 'Уведомления', icon: 'notifications' },
@@ -45,7 +45,7 @@ function Header({ user, setUser }) {
                     <Link
                         key={path}
                         to={path}
-                        className={`nav-link ${location.pathname === path ? 'active' : ''}`}
+                        className={`nav-link ${location.pathname === path ? 'active active-icon' : ''}`}
                     >
                         {icons[icon]({ className: `menu-icon icon-${icon}` })}
                         {name}

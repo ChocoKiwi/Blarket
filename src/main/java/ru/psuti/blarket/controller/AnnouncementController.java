@@ -375,4 +375,32 @@ public class AnnouncementController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Пользователь или объявления не найдены"));
         }
     }
+
+    @GetMapping("/all-except-current")
+    public ResponseEntity<?> getAllAnnouncementsExceptCurrentUser(
+            @AuthenticationPrincipal User user,
+            @RequestParam(required = false) String sort) {
+        if (user == null) {
+            LOGGER.warn("Неавторизованный доступ к получению объявлений");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        try {
+            // Принудительно обновляем данные пользователя из БД
+            User refreshedUser = refreshUserFromDB(user);
+            if (refreshedUser == null) {
+                LOGGER.warn("Не удалось обновить данные пользователя");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+            }
+            // Получаем все объявления
+            List<AnnouncementDTO> announcements = announcementService.getAllAnnouncementsSorted(sort);
+            // Исключаем объявления текущего пользователя
+            announcements = announcements.stream()
+                    .filter(ann -> !ann.getUserId().equals(refreshedUser.getId()))
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(announcements);
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при получении объявлений: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Ошибка сервера"));
+        }
+    }
 }
