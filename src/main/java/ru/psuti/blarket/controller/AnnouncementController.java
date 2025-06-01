@@ -238,10 +238,10 @@ public class AnnouncementController {
                             .map(String::toUpperCase)
                             .map(Announcement.Status::valueOf)
                             .collect(Collectors.toList());
-                    announcements = announcementService.getAnnouncementsByUserAndStatus(refreshedUser, null);
+                    announcements = announcementService.getAnnouncementsByUserAndStatusIn(user, statuses); // Исправлено: используем statuses
                 } else {
                     Announcement.Status announcementStatus = Announcement.Status.valueOf(status.toUpperCase());
-                    announcements = announcementService.getAnnouncementsByUserAndStatus(refreshedUser, announcementStatus);
+                    announcements = announcementService.getAnnouncementsByUserAndStatus(user, announcementStatus);
                 }
             } else {
                 announcements = announcementService.getAnnouncementsByUserAndStatus(refreshedUser, null);
@@ -260,16 +260,16 @@ public class AnnouncementController {
     public ResponseEntity<?> getAnnouncementById(@PathVariable Long id, @AuthenticationPrincipal User user) {
         if (user == null) {
             LOGGER.warn("Неавторизованный доступ к получению объявления с ID {}", id);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Неавторизован"));
         }
         // Принудительно обновляем данные пользователя из БД
         User refreshedUser = refreshUserFromDB(user);
         if (refreshedUser == null) {
             LOGGER.warn("Не удалось обновить данные пользователя для получения объявления с ID {}", id);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Неавторизован"));
         }
         try {
-            Announcement announcement = announcementService.getAnnouncementById(id, refreshedUser);
+            Announcement announcement = announcementService.getPublicAnnouncementById(id);
             return ResponseEntity.ok(UpdateAnnouncementDTO.fromAnnouncement(announcement));
         } catch (Exception e) {
             LOGGER.error("Ошибка при получении объявления с ID {}: {}", id, e.getMessage(), e);
@@ -288,7 +288,9 @@ public class AnnouncementController {
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<?> getAnnouncementsByUserId(@PathVariable Long userId, @RequestParam(required = false) String status) {
+    public ResponseEntity<?> getAnnouncementsByUserId(@PathVariable Long userId,
+                                                      @RequestParam(required = false) String status,
+                                                      @RequestParam(required = false) String sort) {
         try {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
@@ -300,13 +302,14 @@ public class AnnouncementController {
                             .map(String::toUpperCase)
                             .map(Announcement.Status::valueOf)
                             .collect(Collectors.toList());
-                    announcements = announcementService.getAnnouncementsByUserAndStatus(user, null);
+                    announcements = announcementService.getAnnouncementsByUserAndStatusInSorted(user, statuses, sort);
                 } else {
                     Announcement.Status announcementStatus = Announcement.Status.valueOf(status.toUpperCase());
-                    announcements = announcementService.getAnnouncementsByUserAndStatus(user, announcementStatus);
+                    announcements = announcementService.getAnnouncementsByUserAndStatusInSorted(user, List.of(announcementStatus), sort);
                 }
             } else {
-                announcements = announcementService.getAnnouncementsByUserAndStatus(user, null);
+                List<Announcement.Status> defaultStatuses = List.of(Announcement.Status.ACTIVE, Announcement.Status.BUSINESS);
+                announcements = announcementService.getAnnouncementsByUserAndStatusInSorted(user, defaultStatuses, sort);
             }
             return ResponseEntity.ok(announcements);
         } catch (IllegalArgumentException e) {

@@ -1,4 +1,3 @@
-// AnnouncementServiceImpl.java
 package ru.psuti.blarket.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -18,6 +17,7 @@ import ru.psuti.blarket.repository.CategoryRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -37,6 +37,34 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     private final AnnouncementRepository announcementRepository;
     private final CategoryRepository categoryRepository;
     private final ObjectMapper objectMapper;
+
+    // Вспомогательный метод для преобразования Announcement в AnnouncementDTO
+    private AnnouncementDTO toAnnouncementDTO(Announcement announcement) {
+        AnnouncementDTO dto = new AnnouncementDTO();
+        dto.setId(announcement.getId());
+        dto.setTitle(announcement.getTitle());
+        dto.setDescription(announcement.getDescription());
+        dto.setPrice(announcement.getPrice());
+        try {
+            dto.setImageUrls(announcement.getImageUrls() != null
+                    ? objectMapper.readValue(announcement.getImageUrls(), new TypeReference<List<String>>() {})
+                    : List.of());
+        } catch (Exception e) {
+            log.error("Ошибка при разборе imageUrls для объявления ID {}: {}", announcement.getId(), e.getMessage(), e);
+            dto.setImageUrls(List.of());
+        }
+        dto.setAddress(announcement.getAddress());
+        dto.setQuantity(announcement.getQuantity());
+        dto.setCreatedAt(announcement.getCreatedAt());
+        dto.setUpdatedAt(announcement.getUpdatedAt());
+        dto.setViews(announcement.getViews());
+        dto.setCondition(announcement.getCondition());
+        dto.setRating(announcement.getRating());
+        dto.setCategoryId(announcement.getCategory() != null ? announcement.getCategory().getId() : null);
+        dto.setCategoryName(announcement.getCategory() != null ? announcement.getCategory().getName() : null);
+        dto.setStatus(announcement.getStatus());
+        return dto;
+    }
 
     @Override
     public Announcement createAnnouncement(CreateAnnouncementDTO dto, User user, boolean isDraft) {
@@ -162,7 +190,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         log.info("Получение объявлений для пользователя с email: {} и статусом: {}", user.getEmail(), status);
         List<Announcement> announcements;
         if (status == null) {
-            // Поддержка множественных статусов через параметр запроса
             String[] statuses = {"ACTIVE", "BUSINESS"};
             announcements = announcementRepository.findByUserAndStatusIn(user, Arrays.stream(statuses)
                     .map(Announcement.Status::valueOf)
@@ -170,40 +197,31 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         } else {
             announcements = announcementRepository.findByUserAndStatus(user, status);
         }
-        return announcements.stream().map(announcement -> {
-            AnnouncementDTO dto = new AnnouncementDTO();
-            dto.setId(announcement.getId());
-            dto.setTitle(announcement.getTitle());
-            dto.setDescription(announcement.getDescription());
-            dto.setPrice(announcement.getPrice());
-            try {
-                dto.setImageUrls(announcement.getImageUrls() != null
-                        ? objectMapper.readValue(announcement.getImageUrls(), new TypeReference<List<String>>() {})
-                        : List.of());
-            } catch (Exception e) {
-                log.error("Ошибка при разборе imageUrls для объявления ID {}: {}", announcement.getId(), e.getMessage(), e);
-                dto.setImageUrls(List.of());
-            }
-            dto.setAddress(announcement.getAddress());
-            dto.setQuantity(announcement.getQuantity());
-            dto.setCreatedAt(announcement.getCreatedAt());
-            dto.setUpdatedAt(announcement.getUpdatedAt());
-            dto.setViews(announcement.getViews());
-            dto.setCondition(announcement.getCondition());
-            dto.setRating(announcement.getRating());
-            dto.setCategoryId(announcement.getCategory() != null ? announcement.getCategory().getId() : null);
-            dto.setCategoryName(announcement.getCategory() != null ? announcement.getCategory().getName() : null);
-            dto.setStatus(announcement.getStatus());
-            return dto;
-        }).collect(Collectors.toList());
+        return announcements.stream()
+                .map(this::toAnnouncementDTO)
+                .collect(Collectors.toList());
     }
 
     @Override
     public Announcement getAnnouncementById(Long id, User user) {
+        log.info("Получение объявления с ID: {} для пользователя с email: {}", id, user.getEmail());
         Announcement announcement = announcementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Объявление не найдено"));
         if (!announcement.getUser().getId().equals(user.getId())) {
+            log.warn("Попытка доступа к объявлению с ID: {} пользователем без прав: {}", id, user.getEmail());
             throw new RuntimeException("Доступ запрещен");
+        }
+        return announcement;
+    }
+
+    @Override
+    public Announcement getPublicAnnouncementById(Long id) {
+        log.info("Получение публичного объявления с ID: {}", id);
+        Announcement announcement = announcementRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Объявление не найдено"));
+        if (announcement.getStatus() == Announcement.Status.DRAFT || announcement.getStatus() == Announcement.Status.ARCHIVED) {
+            log.warn("Попытка доступа к непубличному объявлению с ID: {} (статус: {})", id, announcement.getStatus());
+            throw new RuntimeException("Объявление не найдено");
         }
         return announcement;
     }
@@ -214,32 +232,54 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new RuntimeException(ERROR_CATEGORY_NOT_FOUND));
         List<Announcement> announcements = announcementRepository.findByCategoryIdOrSubCategories(categoryId);
-        return announcements.stream().map(announcement -> {
-            AnnouncementDTO dto = new AnnouncementDTO();
-            dto.setId(announcement.getId());
-            dto.setTitle(announcement.getTitle());
-            dto.setDescription(announcement.getDescription());
-            dto.setPrice(announcement.getPrice());
-            try {
-                dto.setImageUrls(announcement.getImageUrls() != null
-                        ? objectMapper.readValue(announcement.getImageUrls(), new TypeReference<List<String>>() {})
-                        : List.of());
-            } catch (Exception e) {
-                log.error("Ошибка при разборе imageUrls для объявления ID {}: {}", announcement.getId(), e.getMessage(), e);
-                dto.setImageUrls(List.of());
-            }
-            dto.setAddress(announcement.getAddress());
-            dto.setQuantity(announcement.getQuantity());
-            dto.setCreatedAt(announcement.getCreatedAt());
-            dto.setUpdatedAt(announcement.getUpdatedAt());
-            dto.setViews(announcement.getViews());
-            dto.setCondition(announcement.getCondition());
-            dto.setRating(announcement.getRating());
-            dto.setCategoryId(announcement.getCategory() != null ? announcement.getCategory().getId() : null);
-            dto.setCategoryName(announcement.getCategory() != null ? announcement.getCategory().getName() : null);
-            dto.setStatus(announcement.getStatus());
-            return dto;
-        }).collect(Collectors.toList());
+        return announcements.stream()
+                .map(this::toAnnouncementDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<AnnouncementDTO> getAnnouncementsByUserAndStatusIn(User user, List<Announcement.Status> statuses) {
+        log.info("Получение объявлений для пользователя с email: {} и статусами: {}", user.getEmail(), statuses);
+        List<Announcement> announcements = announcementRepository.findByUserAndStatusIn(user, statuses);
+        return announcements.stream()
+                .map(this::toAnnouncementDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<AnnouncementDTO> getAnnouncementsByUserAndStatusInSorted(User user, List<Announcement.Status> statuses, String sort) {
+        log.info("Получение объявлений для пользователя с email: {} и статусами: {}, сортировка: {}", user.getEmail(), statuses, sort);
+        List<Announcement> announcements = announcementRepository.findByUserAndStatusIn(user, statuses);
+
+        // Сортировка объявлений
+        Comparator<Announcement> comparator;
+        switch (sort != null ? sort.toLowerCase() : "popularity") {
+            case "newest":
+                comparator = Comparator.comparing(Announcement::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()));
+                break;
+            case "expensive":
+                comparator = Comparator.comparing(Announcement::getPrice, Comparator.nullsLast(Comparator.reverseOrder()));
+                break;
+            case "cheapest":
+                comparator = Comparator.comparing(Announcement::getPrice, Comparator.nullsLast(Comparator.naturalOrder()));
+                break;
+            case "rating":
+                comparator = Comparator.comparing(Announcement::getRating, Comparator.nullsLast(Comparator.reverseOrder()));
+                break;
+            case "popularity":
+            default:
+                comparator = Comparator.comparing(Announcement::getViews, Comparator.nullsLast(Comparator.reverseOrder()));
+                break;
+        }
+
+        // Применяем сортировку
+        announcements = announcements.stream()
+                .sorted(comparator)
+                .collect(Collectors.toList());
+
+        return announcements.stream()
+                .map(this::toAnnouncementDTO)
+                .collect(Collectors.toList());
     }
 
     @Override

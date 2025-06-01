@@ -18,6 +18,8 @@ import Archive from './solar_archive-linear.svg?react'
 import Publish from './solar_export-bold.svg?react'
 import Rest from './solar_restart-square-bold.svg?react'
 import Info from './solar_info-circle-bold.svg?react'
+import Tuning from './solar_tuning-2-bold.svg?react'
+import Sort from './solar_sort-vertical-bold.svg'
 
 const icons = {
     home: HomeIcon,
@@ -39,7 +41,9 @@ const icons = {
     archive: Archive,
     publish: Publish,
     rest: Rest,
-    info: Info
+    info: Info,
+    sort: Sort,
+    tuning: Tuning
 };
 
 export default icons;

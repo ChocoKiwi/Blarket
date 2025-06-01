@@ -17,5 +17,9 @@ public interface AnnouncementService {
     Announcement restoreAnnouncement(Long id, User user);
     List<AnnouncementDTO> getAnnouncementsByUserAndStatus(User user, Announcement.Status status);
     Announcement getAnnouncementById(Long id, User user);
+    Announcement getPublicAnnouncementById(Long id);
     List<AnnouncementDTO> getAnnouncementsByCategory(Long categoryId);
+    List<AnnouncementDTO> getAnnouncementsByUserAndStatusIn(User user, List<Announcement.Status> statuses);
+    // Новый метод с параметром сортировки
+    List<AnnouncementDTO> getAnnouncementsByUserAndStatusInSorted(User user, List<Announcement.Status> statuses, String sort);
 }

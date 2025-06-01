@@ -64,6 +64,26 @@ public class UserController {
         }
     }
 
+    @GetMapping("/user/{id}")
+    public ResponseEntity<?> getUserById(@PathVariable Long id) {
+        return userRepository.findById(id)
+                .map(user -> {
+                    Map<String, Object> userData = new HashMap<>();
+                    userData.put("id", user.getId());
+                    userData.put("name", user.getName() != null ? user.getName() : "");
+                    userData.put("email", user.getEmail() != null ? user.getEmail() : "");
+                    userData.put("gender", user.getGender());
+                    userData.put("phone", user.getPhoneNumber());
+                    userData.put("date_of_birth", user.getDateOfBirth());
+                    userData.put("address", user.getAddress());
+                    userData.put("avatar", user.getAvatar());
+                    userData.put("roles", user.getRoles());
+                    return ResponseEntity.ok(userData);
+                })
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("message", "Пользователь не найден")));
+    }
+
     /**
      * Выполняет вход пользователя в систему.
      */
