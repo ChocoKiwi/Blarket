@@ -1,5 +1,6 @@
 package ru.psuti.blarket.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,14 +11,12 @@ import org.springframework.web.bind.annotation.*;
 import ru.psuti.blarket.dto.AnnouncementDTO;
 import ru.psuti.blarket.dto.CreateAnnouncementDTO;
 import ru.psuti.blarket.dto.UpdateAnnouncementDTO;
-import ru.psuti.blarket.model.Announcement;
-import ru.psuti.blarket.model.Category;
-import ru.psuti.blarket.model.Role;
-import ru.psuti.blarket.model.User;
+import ru.psuti.blarket.model.*;
 import ru.psuti.blarket.service.AnnouncementService;
 import ru.psuti.blarket.repository.UserRepository;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -32,6 +31,20 @@ public class AnnouncementController {
 
     private final AnnouncementService announcementService;
     private final UserRepository userRepository;
+
+    private final String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        return ip;
+    }
 
     private boolean isBusinessAnnouncement(CreateAnnouncementDTO dto) {
         boolean isBusiness = (dto.getPrice() != null && new BigDecimal(String.valueOf(dto.getPrice())).compareTo(new BigDecimal("100000")) >= 0) ||
@@ -350,7 +363,10 @@ public class AnnouncementController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> getAnnouncementById(@PathVariable Long id, @AuthenticationPrincipal User user) {
+    public ResponseEntity<?> getAnnouncementById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User user,
+            HttpServletRequest request) {
         if (user == null) {
             LOGGER.warn("Неавторизован доступ к объявлению с ID {}", id);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Неавторизован"));
@@ -361,10 +377,88 @@ public class AnnouncementController {
         }
         try {
             Announcement announcement = announcementService.getPublicAnnouncementById(id);
+            // Регистрируем посещение, visitorAddress не используется, так как берем из User
+            announcementService.trackAnnouncementView(id, refreshedUser, null);
             return ResponseEntity.ok(UpdateAnnouncementDTO.fromAnnouncement(announcement));
         } catch (Exception e) {
             LOGGER.error("Ошибка при получении объявления с ID {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Объявление не найдено"));
+        }
+    }
+
+    @GetMapping("/{id}/stats")
+    public ResponseEntity<?> getAnnouncementStats(
+            @PathVariable Long id,
+            @RequestParam String start,
+            @RequestParam String end,
+            @AuthenticationPrincipal User user) {
+        if (user == null) {
+            LOGGER.warn("Неавторизован доступ к статистике объявления с ID {}", id);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        User refreshedUser = refreshUserFromDB(user);
+        if (refreshedUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        try {
+            Announcement announcement = announcementService.getAnnouncementById(id, refreshedUser);
+            LocalDateTime startDate = LocalDateTime.parse(start);
+            LocalDateTime endDate = LocalDateTime.parse(end);
+            List<AnnouncementView> stats = announcementService.getAnnouncementViewsStats(id, startDate, endDate);
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при получении статистики для объявления с ID {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{id}/unique-visitors")
+    public ResponseEntity<?> getUniqueVisitors(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User user) {
+        if (user == null) {
+            LOGGER.warn("Неавторизован доступ к статистике уникальных посетителей для объявления с ID {}", id);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        User refreshedUser = refreshUserFromDB(user);
+        if (refreshedUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        try {
+            Announcement announcement = announcementService.getAnnouncementById(id, refreshedUser);
+            long uniqueVisitors = announcementService.getUniqueVisitorCount(id);
+            return ResponseEntity.ok(Map.of("uniqueVisitors", uniqueVisitors));
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при получении уникальных посетителей для объявления с ID {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{id}/user-visit-stats")
+    public ResponseEntity<?> getUserVisitStats(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User user) {
+        if (user == null) {
+            LOGGER.warn("Неавторизован доступ к статистике посещений по пользователям для объявления с ID {}", id);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        User refreshedUser = refreshUserFromDB(user);
+        if (refreshedUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        try {
+            Announcement announcement = announcementService.getAnnouncementById(id, refreshedUser);
+            Map<User, Long> visitCounts = announcementService.getVisitCountsByUser(id);
+            // Преобразуем в DTO для безопасной передачи (без пароля и лишних данных)
+            Map<String, Long> result = visitCounts.entrySet().stream()
+                    .collect(Collectors.toMap(
+                            entry -> entry.getKey().getEmail(), // Или getName(), если хотите имя
+                            Map.Entry::getValue
+                    ));
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при получении статистики посещений по пользователям для объявления с ID {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
         }
     }
 

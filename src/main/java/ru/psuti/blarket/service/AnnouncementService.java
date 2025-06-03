@@ -4,10 +4,13 @@ import ru.psuti.blarket.dto.AnnouncementDTO;
 import ru.psuti.blarket.dto.CreateAnnouncementDTO;
 import ru.psuti.blarket.dto.UpdateAnnouncementDTO;
 import ru.psuti.blarket.model.Announcement;
+import ru.psuti.blarket.model.AnnouncementView;
 import ru.psuti.blarket.model.Category;
 import ru.psuti.blarket.model.User;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public interface AnnouncementService {
@@ -32,4 +35,9 @@ public interface AnnouncementService {
     List<Category> getCategoriesByProduct(String query);
 
     Set<String> getDynamicCompletions(String query);
+    void trackAnnouncementView(Long announcementId, User user, String visitorAddress);
+    // Добавить в интерфейс
+    List<AnnouncementView> getAnnouncementViewsStats(Long announcementId, LocalDateTime start, LocalDateTime end);
+    long getUniqueVisitorCount(Long announcementId);
+    Map<User, Long> getVisitCountsByUser(Long announcementId);
 }

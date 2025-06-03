@@ -10,10 +10,13 @@ import ru.psuti.blarket.dto.AnnouncementDTO;
 import ru.psuti.blarket.dto.CreateAnnouncementDTO;
 import ru.psuti.blarket.dto.UpdateAnnouncementDTO;
 import ru.psuti.blarket.model.Announcement;
+import ru.psuti.blarket.model.AnnouncementView;
 import ru.psuti.blarket.model.Category;
 import ru.psuti.blarket.model.User;
 import ru.psuti.blarket.repository.AnnouncementRepository;
+import ru.psuti.blarket.repository.AnnouncementViewRepository;
 import ru.psuti.blarket.repository.CategoryRepository;
+import ru.psuti.blarket.repository.UserRepository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -37,6 +40,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     private final AnnouncementRepository announcementRepository;
     private final CategoryRepository categoryRepository;
     private final ObjectMapper objectMapper;
+    private final AnnouncementViewRepository announcementViewRepository;
 
     // Вспомогательный метод для преобразования Announcement в AnnouncementDTO
     private AnnouncementDTO toAnnouncementDTO(Announcement announcement) {
@@ -556,6 +560,85 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                 .collect(Collectors.toCollection(LinkedHashSet::new));
 
         return completions;
+    }
+
+    @Override
+    public void trackAnnouncementView(Long announcementId, User user, String visitorAddress) {
+        log.info("Регистрация посещения объявления ID: {} пользователем: {}, адрес: {}",
+                announcementId, user != null ? user.getEmail() : "неавторизован", visitorAddress);
+
+        Announcement announcement = announcementRepository.findById(announcementId)
+                .orElseThrow(() -> new RuntimeException("Объявление не найдено"));
+
+        // Не засчитываем просмотр, если пользователь — владелец объявления
+        if (user != null && announcement.getUser() != null && user.getId().equals(announcement.getUser().getId())) {
+            log.info("Просмотр объявления ID: {} владельцем {} не засчитывается",
+                    announcementId, user.getEmail());
+            return;
+        }
+
+        // Проверяем, посещал ли пользователь объявление в последние 60 секунд
+        LocalDateTime recentThreshold = LocalDateTime.now().minusSeconds(60);
+        boolean alreadyVisited = user != null &&
+                announcementViewRepository.existsByAnnouncementAndUserAndVisitTimeAfter(
+                        announcement, user, recentThreshold);
+
+        if (alreadyVisited) {
+            log.info("Посещение объявления ID: {} пользователем {} уже зарегистрировано, пропуск",
+                    announcementId, user.getEmail());
+            return;
+        }
+
+        // Определяем адрес: берем из User, если авторизован, иначе "Неизвестно"
+        String addressToRecord = (user != null && user.getAddress() != null)
+                ? user.getAddress()
+                : "Неизвестно";
+
+        // Создаем запись о посещении
+        AnnouncementView view = AnnouncementView.builder()
+                .announcement(announcement)
+                .user(user)
+                .visitTime(LocalDateTime.now())
+                .visitorAddress(addressToRecord)
+                .build();
+
+        announcementViewRepository.save(view);
+
+        // Обновляем счетчик просмотров (все посещения)
+        long viewCount = announcementViewRepository.countByAnnouncement(announcement);
+        announcement.setViews((int) viewCount);
+        announcementRepository.save(announcement);
+    }
+
+    @Override
+    public List<AnnouncementView> getAnnouncementViewsStats(Long announcementId, LocalDateTime start, LocalDateTime end) {
+        log.info("Получение статистики посещений для объявления ID: {} с {} по {}", announcementId, start, end);
+        Announcement announcement = announcementRepository.findById(announcementId)
+                .orElseThrow(() -> new RuntimeException("Объявление не найдено"));
+        return announcementViewRepository.findByAnnouncementAndVisitTimeBetween(announcement, start, end);
+    }
+
+    @Override
+    public long getUniqueVisitorCount(Long announcementId) {
+        log.info("Получение количества уникальных посетителей для объявления ID: {}", announcementId);
+        Announcement announcement = announcementRepository.findById(announcementId)
+                .orElseThrow(() -> new RuntimeException("Объявление не найдено"));
+        return announcementViewRepository.countUniqueUsersByAnnouncement(announcement);
+    }
+
+    @Override
+    public Map<User, Long> getVisitCountsByUser(Long announcementId) {
+        log.info("Получение статистики посещений по пользователям для объявления ID: {}", announcementId);
+        Announcement announcement = announcementRepository.findById(announcementId)
+                .orElseThrow(() -> new RuntimeException("Объявление не найдено"));
+        List<Object[]> results = announcementViewRepository.findVisitCountsByUserForAnnouncement(announcement);
+        Map<User, Long> visitCounts = new HashMap<>();
+        for (Object[] result : results) {
+            User user = (User) result[0];
+            Long count = (Long) result[1];
+            visitCounts.put(user, count);
+        }
+        return visitCounts;
     }
 
     @Override

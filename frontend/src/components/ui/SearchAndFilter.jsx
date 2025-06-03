@@ -37,14 +37,14 @@ const SearchAndFilter = ({ userId, onSearchResults, selectedSortValue = 'popular
 
         const fetchSuggestions = async () => {
             try {
-                // Fetch dynamic completions
+                // Получаем динамические подсказки
                 const completionRes = await api.get('/announcements/dynamic-completions', {
                     params: { query: searchQuery },
                     withCredentials: true
                 });
                 let suggestions = completionRes.data || [];
 
-                // Fetch categories from search
+                // Получаем категории из поиска
                 const categoryRes = await api.get('/categories/search', {
                     params: { query: searchQuery },
                     withCredentials: true
@@ -55,7 +55,7 @@ const SearchAndFilter = ({ userId, onSearchResults, selectedSortValue = 'popular
                     parentName: category.parent ? category.parent.name : null,
                 }));
 
-                // Fetch categories by product
+                // Получаем категории по товару
                 const productCategoryRes = await api.get('/announcements/categories-by-product', {
                     params: { query: searchQuery },
                     withCredentials: true
@@ -66,29 +66,48 @@ const SearchAndFilter = ({ userId, onSearchResults, selectedSortValue = 'popular
                     parentName: category.parent ? category.parent.name : null,
                 }));
 
-                // Combine and deduplicate categories
+                // Объединяем и убираем дубликаты категорий
                 const combinedCategories = [...searchCategories, ...productCategories];
                 const uniqueCategories = Array.from(
                     new Map(combinedCategories.map(cat => [cat.id, cat])).values()
                 );
                 setCategories(uniqueCategories);
 
-                // Fetch product titles if query matches a category
+                // Проверяем, совпадает ли запрос с категорией
                 const lowerQuery = searchQuery.trim().toLowerCase();
-                const isCategoryMatch = uniqueCategories.some(cat =>
+                const matchedCategory = uniqueCategories.find(cat =>
                     cat.name.toLowerCase().includes(lowerQuery) ||
                     (cat.parentName && cat.parentName.toLowerCase().includes(lowerQuery))
                 );
-                if (isCategoryMatch) {
-                    const announcementsRes = await api.get('/announcements/global-search', {
-                        params: { query: searchQuery },
+
+                if (matchedCategory) {
+                    // Если запрос совпадает с категорией, получаем объявления
+                    const categoryId = matchedCategory.id;
+                    const announcementsRes = await api.get(`/announcements/by-category/${categoryId}`, {
                         withCredentials: true
                     });
                     const productTitles = announcementsRes.data
                         .map(ann => ann.title)
-                        .filter(title => title && !suggestions.includes(title))
-                        .slice(0, 5);
-                    suggestions = [...suggestions, ...productTitles];
+                        .filter(title => title && !suggestions.includes(title));
+
+                    // Форматируем подсказки: 3 слова от последнего введенного
+                    const formattedSuggestions = productTitles.map(title => {
+                        const lowerTitle = title.toLowerCase();
+                        if (lowerTitle.includes(lowerQuery)) {
+                            const words = title.split(/\s+/);
+                            const queryWords = lowerQuery.split(/\s+/);
+                            const lastQueryWord = queryWords[queryWords.length - 1];
+                            const startIndex = words.findIndex(word => word.toLowerCase().includes(lastQueryWord));
+                            if (startIndex !== -1) {
+                                const endIndex = Math.min(startIndex + 3, words.length);
+                                return words.slice(startIndex, endIndex).join(' ');
+                            }
+                            return words.slice(0, 3).join(' ');
+                        }
+                        return title;
+                    });
+
+                    suggestions = [...suggestions, ...formattedSuggestions];
                 }
 
                 setCompletions(suggestions.slice(0, 5));
