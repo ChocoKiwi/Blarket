@@ -11,10 +11,11 @@ import ru.psuti.blarket.dto.AnnouncementDTO;
 import ru.psuti.blarket.dto.CreateAnnouncementDTO;
 import ru.psuti.blarket.dto.UpdateAnnouncementDTO;
 import ru.psuti.blarket.model.Announcement;
+import ru.psuti.blarket.model.Category;
 import ru.psuti.blarket.model.Role;
 import ru.psuti.blarket.model.User;
 import ru.psuti.blarket.service.AnnouncementService;
-import ru.psuti.blarket.repository.UserRepository; // Добавьте зависимость
+import ru.psuti.blarket.repository.UserRepository;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -27,10 +28,10 @@ public class AnnouncementController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AnnouncementController.class);
     private static final String ERROR_UNAUTHORIZED = "Неавторизован";
-    private static final String ERROR_BUSINESS_RESTRICTED = "Обычные пользователи не могут создавать бизнес-объявления (условие: BUYSELL, цена ≥ 100,000 или количество ≥ 35)";
+    private static final String ERROR_BUSINESS_RESTRICTED = "Обычные пользователи не могут создавать бизнес-объявления";
 
     private final AnnouncementService announcementService;
-    private final UserRepository userRepository; // Добавьте репозиторий для загрузки пользователя
+    private final UserRepository userRepository;
 
     private boolean isBusinessAnnouncement(CreateAnnouncementDTO dto) {
         boolean isBusiness = (dto.getPrice() != null && new BigDecimal(String.valueOf(dto.getPrice())).compareTo(new BigDecimal("100000")) >= 0) ||
@@ -52,17 +53,16 @@ public class AnnouncementController {
 
     private User refreshUserFromDB(User user) {
         if (user == null || user.getEmail() == null) {
-            LOGGER.warn("Пользователь или email отсутствует в контексте аутентификации");
+            LOGGER.warn("Пользователь или email отсутствует");
             return null;
         }
         return userRepository.findByEmail(user.getEmail())
                 .map(refreshedUser -> {
-                    LOGGER.info("Обновленные данные пользователя из БД: email={}, roles={}",
-                            refreshedUser.getEmail(), refreshedUser.getRoles());
+                    LOGGER.info("Обновлены данные: email={}, roles={}", refreshedUser.getEmail(), refreshedUser.getRoles());
                     return refreshedUser;
                 })
                 .orElseGet(() -> {
-                    LOGGER.warn("Пользователь с email {} не найден в БД", user.getEmail());
+                    LOGGER.warn("Пользователь с email {} не найден", user.getEmail());
                     return user;
                 });
     }
@@ -70,18 +70,14 @@ public class AnnouncementController {
     @PostMapping
     public ResponseEntity<?> createAnnouncement(@RequestBody CreateAnnouncementDTO dto, @AuthenticationPrincipal User user) {
         if (user == null) {
-            LOGGER.warn("Неавторизованный доступ к созданию объявления");
+            LOGGER.warn("Неавторизован доступ к созданию объявления");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
-        // Принудительно обновляем данные пользователя из БД
         User refreshedUser = refreshUserFromDB(user);
         if (refreshedUser == null) {
-            LOGGER.warn("Не удалось обновить данные пользователя для создания объявления");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
-        LOGGER.debug("Создание объявления пользователем: email={}, roles={}", refreshedUser.getEmail(), refreshedUser.getRoles());
         if (isBusinessAnnouncement(dto) && !refreshedUser.getRoles().contains(Role.PRO) && !refreshedUser.getRoles().contains(Role.ADMIN)) {
-            LOGGER.warn("Пользователь с email {} и ролями {} пытается создать бизнес-объявление", refreshedUser.getEmail(), refreshedUser.getRoles());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ERROR_BUSINESS_RESTRICTED));
         }
         try {
@@ -93,7 +89,7 @@ public class AnnouncementController {
         }
     }
 
-    private static final Set<String> STOP_WORDS = new HashSet<>(Arrays.asList(
+    public static final Set<String> STOP_WORDS = new HashSet<>(Arrays.asList(
             "и", "или", "для", "в", "на", "по", "с", "у", "к", "от", "до", "из", "о", "об", "при", "без",
             "а", "но", "если", "что", "как", "чтобы", "за", "над", "под", "про", "это", "этот", "эта", "эти"
     ));
@@ -107,17 +103,13 @@ public class AnnouncementController {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
             List<AnnouncementDTO> announcements;
-            // Получаем все объявления пользователя с учетом сортировки
             List<Announcement.Status> defaultStatuses = List.of(Announcement.Status.ACTIVE, Announcement.Status.BUSINESS);
             announcements = announcementService.getAnnouncementsByUserAndStatusInSorted(user, defaultStatuses, sort);
 
-            // Фильтруем по запросу, если он есть
             if (query != null && !query.trim().isEmpty()) {
                 String searchQuery = query.trim().toLowerCase();
-                // Используем LinkedHashSet для сохранения порядка и исключения дубликатов
                 LinkedHashSet<AnnouncementDTO> filteredAnnouncements = new LinkedHashSet<>();
 
-                // 1. Сначала ищем полное совпадение с запросом
                 for (AnnouncementDTO ann : announcements) {
                     boolean titleMatch = ann.getTitle() != null && ann.getTitle().toLowerCase().contains(searchQuery);
                     boolean categoryMatch = ann.getCategoryName() != null && ann.getCategoryName().toLowerCase().contains(searchQuery);
@@ -126,20 +118,18 @@ public class AnnouncementController {
                     }
                 }
 
-                // 2. Разбиваем запрос на слова и ищем совпадения по каждому слову, исключая стоп-слова
-                String[] keywords = searchQuery.split("\\s+"); // Разделяем по пробелам
+                String[] keywords = searchQuery.split("\\s+");
                 for (String keyword : keywords) {
-                    if (keyword.length() < 2 || STOP_WORDS.contains(keyword)) continue; // Пропускаем короткие слова и стоп-слова
+                    if (keyword.length() < 2 || STOP_WORDS.contains(keyword)) continue;
                     for (AnnouncementDTO ann : announcements) {
                         boolean titleMatch = ann.getTitle() != null && ann.getTitle().toLowerCase().contains(keyword);
                         boolean categoryMatch = ann.getCategoryName() != null && ann.getCategoryName().toLowerCase().contains(keyword);
                         if (titleMatch || categoryMatch) {
-                            filteredAnnouncements.add(ann); // LinkedHashSet сохраняет порядок и исключает дубли
+                            filteredAnnouncements.add(ann);
                         }
                     }
                 }
 
-                // Преобразуем LinkedHashSet обратно в список
                 announcements = filteredAnnouncements.stream().collect(Collectors.toList());
             }
 
@@ -150,16 +140,54 @@ public class AnnouncementController {
         }
     }
 
+    @GetMapping("/categories-by-announcements")
+    public ResponseEntity<?> getCategoriesByAnnouncements(@RequestParam(required = false) String query, @AuthenticationPrincipal User user) {
+        if (user == null) {
+            LOGGER.warn("Неавторизован доступ к поиску категорий");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        User refreshedUser = refreshUserFromDB(user);
+        if (refreshedUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        try {
+            List<Category> categories = announcementService.getCategoriesByAnnouncements(query);
+            return ResponseEntity.ok(categories);
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при поиске категорий: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Ошибка сервера"));
+        }
+    }
+
+    @GetMapping("/categories-by-product")
+    public ResponseEntity<?> getCategoriesByProduct(@RequestParam(required = false) String query, @AuthenticationPrincipal User user) {
+        if (user == null) {
+            LOGGER.warn("Неавторизован доступ к поиску категорий по товару");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        User refreshedUser = refreshUserFromDB(user);
+        if (refreshedUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        try {
+            LOGGER.info("Поиск категорий по товару: {}", query);
+            List<Category> categories = announcementService.getCategoriesByProduct(query);
+            LOGGER.info("Найдено {} категорий для товара: {}", categories.size(), query);
+            return ResponseEntity.ok(categories);
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при поиске категорий по товару: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Ошибка сервера"));
+        }
+    }
+
     @PostMapping("/draft")
     public ResponseEntity<?> createDraft(@RequestBody CreateAnnouncementDTO dto, @AuthenticationPrincipal User user) {
         if (user == null) {
-            LOGGER.warn("Неавторизованный доступ к созданию черновика");
+            LOGGER.warn("Неавторизован доступ к созданию черновика");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
-        // Принудительно обновляем данные пользователя из БД
         User refreshedUser = refreshUserFromDB(user);
         if (refreshedUser == null) {
-            LOGGER.warn("Не удалось обновить данные пользователя для создания черновика");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
         try {
@@ -174,18 +202,14 @@ public class AnnouncementController {
     @PutMapping("/{id}")
     public ResponseEntity<?> updateAnnouncement(@PathVariable Long id, @RequestBody UpdateAnnouncementDTO dto, @AuthenticationPrincipal User user) {
         if (user == null) {
-            LOGGER.warn("Неавторизованный доступ к обновлению объявления");
+            LOGGER.warn("Неавторизован доступ к обновлению объявления");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
-        // Принудительно обновляем данные пользователя из БД
         User refreshedUser = refreshUserFromDB(user);
         if (refreshedUser == null) {
-            LOGGER.warn("Не удалось обновить данные пользователя для обновления объявления");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
-        LOGGER.debug("Обновление объявления пользователем: email={}, roles={}", refreshedUser.getEmail(), refreshedUser.getRoles());
         if (isBusinessAnnouncement(dto) && !refreshedUser.getRoles().contains(Role.PRO) && !refreshedUser.getRoles().contains(Role.ADMIN)) {
-            LOGGER.warn("Пользователь с email {} и ролями {} пытается обновить объявление до бизнес-статуса", refreshedUser.getEmail(), refreshedUser.getRoles());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ERROR_BUSINESS_RESTRICTED));
         }
         try {
@@ -200,13 +224,12 @@ public class AnnouncementController {
     @PutMapping("/{id}/draft")
     public ResponseEntity<?> updateDraft(@PathVariable Long id, @RequestBody UpdateAnnouncementDTO dto, @AuthenticationPrincipal User user) {
         if (user == null) {
-            LOGGER.warn("Неавторизованный доступ к обновлению черновика");
+            LOGGER.warn("Неавторизован доступ к обновлению черновика");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
-        // Принудительно обновляем данные пользователя из БД
         User refreshedUser = refreshUserFromDB(user);
         if (refreshedUser == null) {
-            LOGGER.warn("Не удалось обновить данные пользователя для обновления черновика");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
         try {
             Announcement announcement = announcementService.updateAnnouncement(id, dto, refreshedUser, true);
@@ -220,13 +243,11 @@ public class AnnouncementController {
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteAnnouncement(@PathVariable Long id, @AuthenticationPrincipal User user) {
         if (user == null) {
-            LOGGER.warn("Неавторизованный доступ к удалению объявления");
+            LOGGER.warn("Неавторизован доступ к удалению объявления");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
-        // Принудительно обновляем данные пользователя из БД
         User refreshedUser = refreshUserFromDB(user);
         if (refreshedUser == null) {
-            LOGGER.warn("Не удалось обновить данные пользователя для удаления объявления");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
         try {
@@ -241,13 +262,11 @@ public class AnnouncementController {
     @PutMapping("/{id}/status")
     public ResponseEntity<?> updateStatus(@PathVariable Long id, @RequestBody Map<String, String> request, @AuthenticationPrincipal User user) {
         if (user == null) {
-            LOGGER.warn("Неавторизованный доступ к изменению статуса объявления");
+            LOGGER.warn("Неавторизован доступ к изменению статуса");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
-        // Принудительно обновляем данные пользователя из БД
         User refreshedUser = refreshUserFromDB(user);
         if (refreshedUser == null) {
-            LOGGER.warn("Не удалось обновить данные пользователя для изменения статуса");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
         try {
@@ -275,13 +294,11 @@ public class AnnouncementController {
     @GetMapping
     public ResponseEntity<?> getAnnouncements(@AuthenticationPrincipal User user, @RequestParam(required = false) String status) {
         if (user == null) {
-            LOGGER.warn("Неавторизованный доступ к получению объявлений");
+            LOGGER.warn("Неавторизован доступ к получению объявлений");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
-        // Принудительно обновляем данные пользователя из БД
         User refreshedUser = refreshUserFromDB(user);
         if (refreshedUser == null) {
-            LOGGER.warn("Не удалось обновить данные пользователя для получения объявлений");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
         try {
@@ -293,7 +310,7 @@ public class AnnouncementController {
                             .map(String::toUpperCase)
                             .map(Announcement.Status::valueOf)
                             .collect(Collectors.toList());
-                    announcements = announcementService.getAnnouncementsByUserAndStatusIn(user, statuses); // Исправлено: используем statuses
+                    announcements = announcementService.getAnnouncementsByUserAndStatusIn(user, statuses);
                 } else {
                     Announcement.Status announcementStatus = Announcement.Status.valueOf(status.toUpperCase());
                     announcements = announcementService.getAnnouncementsByUserAndStatus(user, announcementStatus);
@@ -314,13 +331,11 @@ public class AnnouncementController {
     @GetMapping("/{id}")
     public ResponseEntity<?> getAnnouncementById(@PathVariable Long id, @AuthenticationPrincipal User user) {
         if (user == null) {
-            LOGGER.warn("Неавторизованный доступ к получению объявления с ID {}", id);
+            LOGGER.warn("Неавторизован доступ к объявлению с ID {}", id);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Неавторизован"));
         }
-        // Принудительно обновляем данные пользователя из БД
         User refreshedUser = refreshUserFromDB(user);
         if (refreshedUser == null) {
-            LOGGER.warn("Не удалось обновить данные пользователя для получения объявления с ID {}", id);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Неавторизован"));
         }
         try {
@@ -332,10 +347,13 @@ public class AnnouncementController {
         }
     }
 
-    @GetMapping("/categories/{categoryId}")
+    @GetMapping("/by-category/{categoryId}")
     public ResponseEntity<?> getAnnouncementsByCategory(@PathVariable Long categoryId) {
         try {
-            return ResponseEntity.ok(announcementService.getAnnouncementsByCategory(categoryId));
+            LOGGER.info("Получение объявлений для категории ID: {}", categoryId);
+            List<AnnouncementDTO> announcements = announcementService.getAnnouncementsByCategory(categoryId);
+            LOGGER.info("Возвращено {} объявлений для категории ID: {}", announcements.size(), categoryId);
+            return ResponseEntity.ok(announcements);
         } catch (Exception e) {
             LOGGER.error("Ошибка при получении объявлений для категории с ID {}: {}", categoryId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
@@ -381,25 +399,67 @@ public class AnnouncementController {
             @AuthenticationPrincipal User user,
             @RequestParam(required = false) String sort) {
         if (user == null) {
-            LOGGER.warn("Неавторизованный доступ к получению объявлений");
+            LOGGER.warn("Неавторизован доступ к объявлениям");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
         }
         try {
-            // Принудительно обновляем данные пользователя из БД
             User refreshedUser = refreshUserFromDB(user);
             if (refreshedUser == null) {
-                LOGGER.warn("Не удалось обновить данные пользователя");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
             }
-            // Получаем все объявления
             List<AnnouncementDTO> announcements = announcementService.getAllAnnouncementsSorted(sort);
-            // Исключаем объявления текущего пользователя
             announcements = announcements.stream()
                     .filter(ann -> !ann.getUserId().equals(refreshedUser.getId()))
                     .collect(Collectors.toList());
             return ResponseEntity.ok(announcements);
         } catch (Exception e) {
             LOGGER.error("Ошибка при получении объявлений: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Ошибка сервера"));
+        }
+    }
+
+    @GetMapping("/global-search")
+    public ResponseEntity<?> globalSearch(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String sort,
+            @AuthenticationPrincipal User user) {
+        if (user == null) {
+            LOGGER.warn("Неавторизован доступ к глобальному поиску");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        User refreshedUser = refreshUserFromDB(user);
+        if (refreshedUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        try {
+            List<AnnouncementDTO> announcements = announcementService.searchAnnouncementsGlobally(query, sort);
+            announcements = announcements.stream()
+                    .filter(ann -> !ann.getUserId().equals(refreshedUser.getId()))
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(announcements);
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при глобальном поиске: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Ошибка сервера"));
+        }
+    }
+
+    @GetMapping("/word-completions")
+    public ResponseEntity<?> getWordCompletions(
+            @RequestParam(required = false) String prefix,
+            @AuthenticationPrincipal User user) {
+        if (user == null) {
+            LOGGER.warn("Неавторизован доступ к автодополнению");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        User refreshedUser = refreshUserFromDB(user);
+        if (refreshedUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        try {
+            Set<String> completions = announcementService.getWordCompletions(prefix);
+            return ResponseEntity.ok(completions);
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при автодополнении для префикса {}: {}", prefix, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Ошибка сервера"));
         }
     }

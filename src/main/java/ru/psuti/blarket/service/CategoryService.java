@@ -10,8 +10,10 @@ import ru.psuti.blarket.model.Category;
 import ru.psuti.blarket.repository.CategoryRepository;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -75,5 +77,42 @@ public class CategoryService {
     public static class CategoryWithParent {
         private Category parent;
         private Category child;
+    }
+
+    public List<Category> searchCategories(String query) {
+        if (query == null || query.trim().isEmpty()) return new ArrayList<>();
+        String lowerQuery = query.trim().toLowerCase();
+        List<Category> allCategories = categoryRepository.findAll();
+        List<Category> matchedCategories = new ArrayList<>();
+
+        // Find matching categories
+        for (Category category : allCategories) {
+            if (category.getName() != null && category.getName().toLowerCase().contains(lowerQuery)) {
+                matchedCategories.add(category);
+            }
+        }
+
+        // If a main category matches, include its subcategories; if a subcategory matches, include its parent
+        List<Category> result = new ArrayList<>();
+        for (Category match : matchedCategories) {
+            if (match.getParent() == null) {
+                // Main category matched, add its subcategories
+                result.add(match);
+                List<Category> subCategories = categoryRepository.findByParentId(match.getId());
+                result.addAll(subCategories);
+            } else {
+                // Subcategory matched, add its parent and the subcategory itself
+                Hibernate.initialize(match.getParent());
+                if (match.getParent() != null) {
+                    result.add(match.getParent());
+                }
+                result.add(match);
+            }
+        }
+
+        // Remove duplicates while preserving order
+        return result.stream()
+                .distinct()
+                .collect(Collectors.toList());
     }
 }

@@ -4,9 +4,11 @@ import ru.psuti.blarket.dto.AnnouncementDTO;
 import ru.psuti.blarket.dto.CreateAnnouncementDTO;
 import ru.psuti.blarket.dto.UpdateAnnouncementDTO;
 import ru.psuti.blarket.model.Announcement;
+import ru.psuti.blarket.model.Category;
 import ru.psuti.blarket.model.User;
 
 import java.util.List;
+import java.util.Set;
 
 public interface AnnouncementService {
     Announcement createAnnouncement(CreateAnnouncementDTO dto, User user, boolean isDraft);
@@ -23,4 +25,9 @@ public interface AnnouncementService {
     // Новый метод с параметром сортировки
     List<AnnouncementDTO> getAnnouncementsByUserAndStatusInSorted(User user, List<Announcement.Status> statuses, String sort);
     List<AnnouncementDTO> getAllAnnouncementsSorted(String sort);
+    List<AnnouncementDTO> searchAnnouncementsGlobally(String query, String sort);
+    Set<String> getWordCompletions(String prefix);
+    List<Category> getCategoriesByAnnouncements(String query);
+
+    List<Category> getCategoriesByProduct(String query);
 }

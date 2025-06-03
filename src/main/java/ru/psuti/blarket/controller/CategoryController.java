@@ -2,6 +2,8 @@
 package ru.psuti.blarket.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.psuti.blarket.model.Category;
@@ -14,6 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CategoryController {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(CategoryController.class);
     private final CategoryService categoryService;
 
     @GetMapping
@@ -74,5 +77,16 @@ public class CategoryController {
     public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
         categoryService.deleteCategory(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<Category>> searchCategories(@RequestParam(required = false) String query) {
+        try {
+            List<Category> categories = categoryService.searchCategories(query);
+            return ResponseEntity.ok(categories);
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при поиске категорий с запросом {}: {}", query, e.getMessage(), e);
+            return ResponseEntity.status(500).body(null);
+        }
     }
 }

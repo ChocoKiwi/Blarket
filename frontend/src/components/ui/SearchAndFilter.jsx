@@ -1,53 +1,144 @@
 // src/components/ui/SearchAndFilter.jsx
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import api from '../../api';
 import '../../App.scss';
 import Search from '../../assets/icons/search.svg';
 
-const SearchAndFilter = ({ userId, onSearchResults, selectedSortValue }) => {
+const SearchAndFilter = ({ userId, onSearchResults, selectedSortValue = 'popularity' }) => {
     const [searchQuery, setSearchQuery] = useState('');
+    const [recentSearches, setRecentSearches] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [completions, setCompletions] = useState([]);
+    const [isPopupOpen, setIsPopupOpen] = useState(false);
     const inputRef = useRef(null);
+    const popupRef = useRef(null);
+    const timeoutRef = useRef(null);
 
-    // Функция для выполнения поиска
-    const performSearch = async () => {
-        try {
-            if (!userId) {
-                onSearchResults([]);
-                return;
+    useEffect(() => {
+        const storedSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+        setRecentSearches(storedSearches.slice(0, 6));
+    }, []);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (popupRef.current && !popupRef.current.contains(event.target) && inputRef.current && !inputRef.current.contains(event.target)) {
+                setIsPopupOpen(false);
             }
-            // Если запрос пустой, запрашиваем все объявления пользователя
-            const url = searchQuery.trim()
-                ? `/announcements/user/${userId}/search?query=${encodeURIComponent(searchQuery)}&sort=${selectedSortValue}`
-                : `/announcements/user/${userId}?status=ACTIVE,BUSINESS&sort=${selectedSortValue}`;
-            const response = await api.get(url, {
-                withCredentials: true,
-            });
-            onSearchResults(response.data || []);
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        if (searchQuery.trim() === '' && isPopupOpen) {
+            setCompletions([]);
+            setCategories([]);
+            return;
+        }
+
+        const fetchSuggestions = async () => {
+            try {
+                const completionRes = await api.get('/announcements/word-completions', { params: { prefix: searchQuery }, withCredentials: true });
+                let suggestions = completionRes.data || [];
+
+                const categoryRes = await api.get('/categories/search', { params: { query: searchQuery }, withCredentials: true });
+                const formattedCategories = categoryRes.data.map(category => ({
+                    id: category.id,
+                    name: category.name,
+                    parentName: category.parent ? category.parent.name : null,
+                }));
+                setCategories(formattedCategories || []);
+
+                // Запрос категорий по товару
+                const productCategoryRes = await api.get('/announcements/categories-by-product', { params: { query: searchQuery }, withCredentials: true });
+                const productCategories = productCategoryRes.data.map(category => ({
+                    id: category.id,
+                    name: category.name,
+                    parentName: category.parent ? category.parent.name : null,
+                }));
+
+                // Запрос товаров для первой найденной категории
+                let products = [];
+                if (formattedCategories.length > 0) {
+                    const categoryId = formattedCategories[0].id;
+                    const productsRes = await api.get(`/announcements/by-category/${categoryId}`, { withCredentials: true });
+                    products = productsRes.data.slice(0, 5).map(product => product.title) || [];
+                }
+
+                // Объединяем подсказки: автодополнения + товары + категории по товару
+                suggestions = [...new Set([...suggestions, ...products, ...productCategories.map(cat => cat.name)])];
+                setCompletions(suggestions);
+
+            } catch (err) {
+                console.error('Ошибка при получении подсказок:', err);
+                setCompletions([]);
+                setCategories([]);
+            }
+        };
+
+        if (searchQuery.trim() !== '') {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            timeoutRef.current = setTimeout(fetchSuggestions, 300);
+        }
+
+        return () => {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        };
+    }, [searchQuery, isPopupOpen]);
+
+    const saveRecentSearch = (query) => {
+        if (!query.trim()) return;
+        let searches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
+        searches = [query, ...searches.filter((s) => s !== query)].slice(0, 6);
+        localStorage.setItem('recentSearches', JSON.stringify(searches));
+        setRecentSearches(searches);
+    };
+
+    const performSearch = async (query = searchQuery) => {
+        try {
+            const url = query.trim()
+                ? `/announcements/global-search?query=${encodeURIComponent(query)}&sort=${selectedSortValue}`
+                : `/announcements/all-except-current?sort=${selectedSortValue}`;
+            const response = await api.get(url, { withCredentials: true });
+            if (typeof onSearchResults === 'function') {
+                onSearchResults(response.data || []);
+            }
+            saveRecentSearch(query);
+            setIsPopupOpen(false);
         } catch (err) {
             console.error('Ошибка при поиске:', err);
-            onSearchResults([]); // В случае ошибки возвращаем пустой список
+            if (typeof onSearchResults === 'function') {
+                onSearchResults([]);
+            }
+            setIsPopupOpen(false);
         }
     };
 
-    // Обработка изменения текста в поле ввода
     const handleSearchChange = (e) => {
         setSearchQuery(e.target.value);
     };
 
-    // Обработка нажатия Enter
     const handleKeyPress = (e) => {
         if (e.key === 'Enter') {
             performSearch();
         }
     };
 
-    // Обработка клика по иконке поиска
     const handleSearchClick = () => {
         performSearch();
     };
 
+    const handleItemClick = (value) => {
+        setSearchQuery(value);
+        performSearch(value);
+    };
+
+    const handleFocus = () => {
+        setIsPopupOpen(true);
+    };
+
     return (
-        <div className="search-and-filter">
+        <section className="search-and-filter">
             <div className="search-container">
                 <input
                     type="text"
@@ -56,16 +147,65 @@ const SearchAndFilter = ({ userId, onSearchResults, selectedSortValue }) => {
                     value={searchQuery}
                     onChange={handleSearchChange}
                     onKeyPress={handleKeyPress}
+                    onFocus={handleFocus}
                     ref={inputRef}
+                    aria-label="Поиск"
                 />
-                <img
-                    src={Search}
-                    alt="Search"
+                <button
+                    type="button"
+                    className="search-button"
                     onClick={handleSearchClick}
-                    style={{ cursor: 'pointer' }} // Делаем иконку кликабельной
-                />
+                    aria-label="Выполнить поиск"
+                >
+                    <img src={Search} alt="Иконка поиска" />
+                </button>
             </div>
-        </div>
+            {isPopupOpen && (
+                <>
+                    <div className="search-overlay" aria-hidden="true" />
+                    <div className="search-popup" ref={popupRef}>
+                        <div className="popup-content">
+                            {searchQuery.trim() === '' && recentSearches.length > 0 && (
+                                <section className="popup-section">
+                                    <h3>Недавние запросы</h3>
+                                    <ul className="popup-list">
+                                        {recentSearches.map((search, index) => (
+                                            <li key={index} onClick={() => handleItemClick(search)} role="option" aria-selected="false">
+                                                {search}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </section>
+                            )}
+                            {completions.length > 0 && (
+                                <section className="popup-section">
+                                    <h3>Подсказки</h3>
+                                    <ul className="popup-list">
+                                        {completions.map((completion, index) => (
+                                            <li key={index} onClick={() => handleItemClick(completion)} role="option" aria-selected="false">
+                                                {completion}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </section>
+                            )}
+                            {categories.length > 0 && (
+                                <section className="popup-section">
+                                    <h3>Категории</h3>
+                                    <ul className="popup-list">
+                                        {categories.map((category) => (
+                                            <li key={category.id} onClick={() => handleItemClick(category.name)} role="option" aria-selected="false">
+                                                {category.parentName ? `${category.parentName} > ${category.name}` : category.name}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </section>
+                            )}
+                        </div>
+                    </div>
+                </>
+            )}
+        </section>
     );
 };
 

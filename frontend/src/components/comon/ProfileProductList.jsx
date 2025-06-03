@@ -8,9 +8,9 @@ import '../../App.scss';
 import icons from '../../assets/icons/icons';
 import check from '../../assets/icons/sucsses.svg';
 
-const ProfileProductList = ({ user, onLogout, isHomePage = false }) => {
+const ProfileProductList = ({ user, onLogout, isHomePage = false, externalAnnouncements }) => {
     const { id } = useParams();
-    const [announcements, setAnnouncements] = useState([]);
+    const [announcements, setAnnouncements] = useState(externalAnnouncements || []);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedSort, setSelectedSort] = useState('самые популярные');
@@ -19,7 +19,7 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false }) => {
     const [selectedStatus, setSelectedStatus] = useState(null);
     const timeoutRef = useRef(null);
     const [userData, setUserData] = useState(null);
-    const isOwnProfile = !isHomePage && user && id && parseInt(id) === user.id; // Проверяем, свой ли профиль
+    const isOwnProfile = !isHomePage && user && id && parseInt(id) === user.id;
 
     const getConditionText = (condition) => {
         switch (condition) {
@@ -38,9 +38,8 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false }) => {
         if (!isHomePage) {
             const fetchUserData = async () => {
                 try {
-                    const response = await api.get(`/user/${id}`, {
-                        withCredentials: true,
-                    });
+                    const response = await api.get(`/user/${id}`, { withCredentials: true });
+                    console.log('Fetched user data:', response.data); // Для отладки
                     setUserData(response.data);
                 } catch (err) {
                     console.error('Ошибка загрузки данных пользователя:', err);
@@ -51,44 +50,53 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false }) => {
     }, [id, isHomePage]);
 
     useEffect(() => {
-        const fetchAnnouncements = async () => {
-            setLoading(true);
-            try {
-                let url;
-                if (isHomePage) {
-                    url = `/announcements/all-except-current?sort=${selectedSortValue}`;
-                } else {
-                    url = selectedStatus
-                        ? `/announcements/user/${id}?status=${selectedStatus}&sort=${selectedSortValue}`
-                        : `/announcements/user/${id}?status=ACTIVE,BUSINESS&sort=${selectedSortValue}`;
+        if (!externalAnnouncements) {
+            const fetchAnnouncements = async () => {
+                setLoading(true);
+                try {
+                    let url;
+                    if (isHomePage) {
+                        url = `/announcements/all-except-current?sort=${selectedSortValue}`;
+                    } else {
+                        url = selectedStatus
+                            ? `/announcements/user/${id}?status=${selectedStatus}&sort=${selectedSortValue}`
+                            : `/announcements/user/${id}?status=ACTIVE,BUSINESS&sort=${selectedSortValue}`;
+                    }
+                    console.log('Fetching announcements with URL:', url); // Для отладки
+                    const response = await api.get(url, { withCredentials: true });
+                    console.log('Fetched announcements:', response.data); // Для отладки
+                    setAnnouncements(response.data || []);
+                    console.log('Updated announcements state:', response.data || []); // Для отладки
+                    setLoading(false);
+                    setError(null);
+                } catch (err) {
+                    console.error('Ошибка загрузки объявлений:', err);
+                    if (err.response?.status === 401) {
+                        setError('Неавторизован');
+                        onLogout();
+                    } else if (err.response?.status === 404) {
+                        setError('Пользователь или объявления не найдены');
+                    } else {
+                        setError('Ошибка загрузки объявлений');
+                    }
+                    setLoading(false);
                 }
-                const response = await api.get(url, {
-                    withCredentials: true,
-                });
-                setAnnouncements(response.data || []);
-                setLoading(false);
-                setError(null);
-            } catch (err) {
-                console.error('Ошибка загрузки объявлений:', err);
-                if (err.response?.status === 401) {
-                    setError('Неавторизован');
-                    onLogout();
-                } else if (err.response?.status === 404) {
-                    setError('Пользователь или объявления не найдены');
-                } else {
-                    setError('Ошибка загрузки объявлений');
-                }
-                setLoading(false);
-            }
-        };
-        fetchAnnouncements();
-    }, [id, selectedStatus, selectedSortValue, onLogout, isHomePage]);
+            };
+            fetchAnnouncements();
+        } else {
+            console.log('Using external announcements:', externalAnnouncements); // Для отладки
+            setAnnouncements(externalAnnouncements);
+            setLoading(false);
+        }
+    }, [id, selectedStatus, selectedSortValue, onLogout, isHomePage, externalAnnouncements]);
 
     const handleSearchResults = (searchResults) => {
+        console.log('ProfileProductList: Received search results:', searchResults); // Для отладки
         setAnnouncements(searchResults);
     };
 
     const handleOptionSelect = (option, value) => {
+        console.log('Selected sort:', { option, value }); // Для отладки
         setSelectedSort(option);
         setSelectedSortValue(value);
         setIsMenuOpen(false);
@@ -117,6 +125,7 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false }) => {
 
     const handleStatusSelect = (status) => {
         if (loading) return;
+        console.log('Selected status:', status); // Для отладки
         setSelectedStatus(status);
     };
 
@@ -249,7 +258,7 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false }) => {
                                 authorName={isHomePage ? announcement.authorName || 'Без имени' : userData?.name || 'Без имени'}
                                 price={announcement.price ? parseFloat(announcement.price) : 0}
                                 condition={getConditionText(announcement.condition)}
-                                isOwnProfile={isOwnProfile} // Передаем флаг
+                                isOwnProfile={isOwnProfile}
                             />
                         ))}
                     </div>

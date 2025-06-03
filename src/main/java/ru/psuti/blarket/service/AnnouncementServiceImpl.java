@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 import ru.psuti.blarket.dto.AnnouncementDTO;
 import ru.psuti.blarket.dto.CreateAnnouncementDTO;
@@ -16,11 +17,10 @@ import ru.psuti.blarket.repository.CategoryRepository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import static ru.psuti.blarket.controller.AnnouncementController.STOP_WORDS;
 
 @Service
 @RequiredArgsConstructor
@@ -232,11 +232,13 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     public List<AnnouncementDTO> getAnnouncementsByCategory(Long categoryId) {
         log.info("Получение объявлений для категории с ID: {}", categoryId);
         categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new RuntimeException(ERROR_CATEGORY_NOT_FOUND));
+                .orElseThrow(() -> new RuntimeException("Категория не найдена"));
         List<Announcement> announcements = announcementRepository.findByCategoryIdOrSubCategories(categoryId);
-        return announcements.stream()
+        List<AnnouncementDTO> result = announcements.stream()
                 .map(this::toAnnouncementDTO)
                 .collect(Collectors.toList());
+        log.info("Возвращено {} объявлений для категории ID: {}", result.size(), categoryId);
+        return result;
     }
 
     @Override
@@ -320,6 +322,184 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         return announcements.stream()
                 .map(this::toAnnouncementDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<AnnouncementDTO> searchAnnouncementsGlobally(String query, String sort) {
+        log.info("Глобальный поиск объявлений с запросом: {} и сортировкой: {}", query, sort);
+        List<Announcement> announcements = announcementRepository.findAll()
+                .stream()
+                .filter(ann -> ann.getStatus() == Announcement.Status.ACTIVE || ann.getStatus() == Announcement.Status.BUSINESS)
+                .collect(Collectors.toList());
+
+        if (query != null && !query.trim().isEmpty()) {
+            String searchQuery = query.trim().toLowerCase();
+            LinkedHashSet<Announcement> filteredAnnouncements = new LinkedHashSet<>();
+
+            // 1. Exact match for title or category
+            for (Announcement ann : announcements) {
+                boolean titleMatch = ann.getTitle() != null && ann.getTitle().toLowerCase().contains(searchQuery);
+                boolean categoryMatch = ann.getCategory() != null && ann.getCategory().getName().toLowerCase().contains(searchQuery);
+                if (titleMatch || categoryMatch) {
+                    filteredAnnouncements.add(ann);
+                }
+            }
+
+            // 2. Split query into words and match, excluding stop words
+            String[] keywords = searchQuery.split("\\s+");
+            for (String keyword : keywords) {
+                if (keyword.length() < 2 || STOP_WORDS.contains(keyword)) continue;
+                for (Announcement ann : announcements) {
+                    boolean titleMatch = ann.getTitle() != null && ann.getTitle().toLowerCase().contains(keyword);
+                    boolean categoryMatch = ann.getCategory() != null && ann.getCategory().getName().toLowerCase().contains(keyword);
+                    if (titleMatch || categoryMatch) {
+                        filteredAnnouncements.add(ann);
+                    }
+                }
+            }
+
+            announcements = new ArrayList<>(filteredAnnouncements);
+        }
+
+        // Sort announcements
+        Comparator<Announcement> comparator;
+        switch (sort != null ? sort.toLowerCase() : "popularity") {
+            case "newest":
+                comparator = Comparator.comparing(Announcement::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()));
+                break;
+            case "expensive":
+                comparator = Comparator.comparing(Announcement::getPrice, Comparator.nullsLast(Comparator.reverseOrder()));
+                break;
+            case "cheapest":
+                comparator = Comparator.comparing(Announcement::getPrice, Comparator.nullsLast(Comparator.naturalOrder()));
+                break;
+            case "rating":
+                comparator = Comparator.comparing(Announcement::getRating, Comparator.nullsLast(Comparator.reverseOrder()));
+                break;
+            case "popularity":
+            default:
+                comparator = Comparator.comparing(Announcement::getViews, Comparator.nullsLast(Comparator.reverseOrder()));
+                break;
+        }
+
+        announcements = announcements.stream()
+                .sorted(comparator)
+                .collect(Collectors.toList());
+
+        List<AnnouncementDTO> result = announcements.stream()
+                .map(this::toAnnouncementDTO)
+                .collect(Collectors.toList());
+        log.info("Глобальный поиск вернул {} объявлений для запроса: {}", result.size(), query);
+        return result;
+    }
+
+    @Override
+    public Set<String> getWordCompletions(String prefix) {
+        log.info("Поиск автодополнений для префикса: {}", prefix);
+        if (prefix == null || prefix.trim().length() < 2) return new LinkedHashSet<>();
+
+        String lowerPrefix = prefix.trim().toLowerCase();
+        Set<String> completions = new LinkedHashSet<>();
+
+        // Get all active/business announcements
+        List<Announcement> announcements = announcementRepository.findAll()
+                .stream()
+                .filter(ann -> ann.getStatus() == Announcement.Status.ACTIVE || ann.getStatus() == Announcement.Status.BUSINESS)
+                .collect(Collectors.toList());
+
+        // Split titles into words and find matches
+        for (Announcement ann : announcements) {
+            if (ann.getTitle() != null) {
+                String[] words = ann.getTitle().toLowerCase().split("\\s+");
+                for (String word : words) {
+                    if (word.length() >= 2 && !STOP_WORDS.contains(word) && word.startsWith(lowerPrefix)) {
+                        completions.add(word);
+                        if (completions.size() >= 5) break;
+                    }
+                }
+            }
+            if (completions.size() >= 5) break;
+        }
+
+        return completions;
+    }
+
+    @Override
+    public List<Category> getCategoriesByAnnouncements(String query) {
+        log.info("Поиск категорий для объявлений с запросом: {}", query);
+        List<Announcement> announcements = announcementRepository.findAll()
+                .stream()
+                .filter(ann -> ann.getStatus() == Announcement.Status.ACTIVE || ann.getStatus() == Announcement.Status.BUSINESS)
+                .collect(Collectors.toList());
+
+        if (query != null && !query.trim().isEmpty()) {
+            String searchQuery = query.trim().toLowerCase();
+            LinkedHashSet<Announcement> filteredAnnouncements = new LinkedHashSet<>();
+
+            // Поиск по названию и категории
+            for (Announcement ann : announcements) {
+                boolean titleMatch = ann.getTitle() != null && ann.getTitle().toLowerCase().contains(searchQuery);
+                boolean categoryMatch = ann.getCategory() != null && ann.getCategory().getName().toLowerCase().contains(searchQuery);
+                if (titleMatch || categoryMatch) {
+                    filteredAnnouncements.add(ann);
+                }
+            }
+
+            // Разбиваем запрос на слова, исключая стоп-слова
+            String[] keywords = searchQuery.split("\\s+");
+            for (String keyword : keywords) {
+                if (keyword.length() < 2 || STOP_WORDS.contains(keyword)) continue;
+                for (Announcement ann : announcements) {
+                    boolean titleMatch = ann.getTitle() != null && ann.getTitle().toLowerCase().contains(keyword);
+                    boolean categoryMatch = ann.getCategory() != null && ann.getCategory().getName().toLowerCase().contains(keyword);
+                    if (titleMatch || categoryMatch) {
+                        filteredAnnouncements.add(ann);
+                    }
+                }
+            }
+
+            announcements = new ArrayList<>(filteredAnnouncements);
+        }
+
+        // Извлекаем категории (главные и дочерние) из найденных объявлений
+        List<Category> result = new ArrayList<>();
+        for (Announcement ann : announcements) {
+            if (ann.getCategory() != null) {
+                Hibernate.initialize(ann.getCategory().getParent());
+                result.add(ann.getCategory());
+                if (ann.getCategory().getParent() != null) {
+                    result.add(ann.getCategory().getParent());
+                }
+            }
+        }
+
+        // Удаляем дубликаты
+        return result.stream()
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Category> getCategoriesByProduct(String query) {
+        if (query == null || query.trim().isEmpty()) return new ArrayList<>();
+        String lowerQuery = query.trim().toLowerCase();
+        List<Announcement> announcements = announcementRepository.findAll();
+        Set<Category> categories = new HashSet<>();
+
+        for (Announcement ann : announcements) {
+            if (ann.getTitle() != null && ann.getTitle().toLowerCase().contains(lowerQuery)) {
+                Category category = ann.getCategory();
+                if (category != null) {
+                    categories.add(category);
+                    if (category.getParent() != null) {
+                        categories.add(category.getParent());
+                    }
+                }
+            }
+        }
+
+        List<Category> result = new ArrayList<>(categories);
+        return result;
     }
 
     @Override
