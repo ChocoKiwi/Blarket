@@ -30,4 +30,6 @@ public interface AnnouncementService {
     List<Category> getCategoriesByAnnouncements(String query);
 
     List<Category> getCategoriesByProduct(String query);
+
+    Set<String> getDynamicCompletions(String query);
 }

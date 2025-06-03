@@ -1,4 +1,3 @@
-// src/components/ui/SearchAndFilter.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import api from '../../api';
 import '../../App.scss';
@@ -38,37 +37,61 @@ const SearchAndFilter = ({ userId, onSearchResults, selectedSortValue = 'popular
 
         const fetchSuggestions = async () => {
             try {
-                const completionRes = await api.get('/announcements/word-completions', { params: { prefix: searchQuery }, withCredentials: true });
+                // Fetch dynamic completions
+                const completionRes = await api.get('/announcements/dynamic-completions', {
+                    params: { query: searchQuery },
+                    withCredentials: true
+                });
                 let suggestions = completionRes.data || [];
 
-                const categoryRes = await api.get('/categories/search', { params: { query: searchQuery }, withCredentials: true });
-                const formattedCategories = categoryRes.data.map(category => ({
+                // Fetch categories from search
+                const categoryRes = await api.get('/categories/search', {
+                    params: { query: searchQuery },
+                    withCredentials: true
+                });
+                const searchCategories = categoryRes.data.map(category => ({
                     id: category.id,
                     name: category.name,
                     parentName: category.parent ? category.parent.name : null,
                 }));
-                setCategories(formattedCategories || []);
 
-                // Запрос категорий по товару
-                const productCategoryRes = await api.get('/announcements/categories-by-product', { params: { query: searchQuery }, withCredentials: true });
+                // Fetch categories by product
+                const productCategoryRes = await api.get('/announcements/categories-by-product', {
+                    params: { query: searchQuery },
+                    withCredentials: true
+                });
                 const productCategories = productCategoryRes.data.map(category => ({
                     id: category.id,
                     name: category.name,
                     parentName: category.parent ? category.parent.name : null,
                 }));
 
-                // Запрос товаров для первой найденной категории
-                let products = [];
-                if (formattedCategories.length > 0) {
-                    const categoryId = formattedCategories[0].id;
-                    const productsRes = await api.get(`/announcements/by-category/${categoryId}`, { withCredentials: true });
-                    products = productsRes.data.slice(0, 5).map(product => product.title) || [];
+                // Combine and deduplicate categories
+                const combinedCategories = [...searchCategories, ...productCategories];
+                const uniqueCategories = Array.from(
+                    new Map(combinedCategories.map(cat => [cat.id, cat])).values()
+                );
+                setCategories(uniqueCategories);
+
+                // Fetch product titles if query matches a category
+                const lowerQuery = searchQuery.trim().toLowerCase();
+                const isCategoryMatch = uniqueCategories.some(cat =>
+                    cat.name.toLowerCase().includes(lowerQuery) ||
+                    (cat.parentName && cat.parentName.toLowerCase().includes(lowerQuery))
+                );
+                if (isCategoryMatch) {
+                    const announcementsRes = await api.get('/announcements/global-search', {
+                        params: { query: searchQuery },
+                        withCredentials: true
+                    });
+                    const productTitles = announcementsRes.data
+                        .map(ann => ann.title)
+                        .filter(title => title && !suggestions.includes(title))
+                        .slice(0, 5);
+                    suggestions = [...suggestions, ...productTitles];
                 }
 
-                // Объединяем подсказки: автодополнения + товары + категории по товару
-                suggestions = [...new Set([...suggestions, ...products, ...productCategories.map(cat => cat.name)])];
-                setCompletions(suggestions);
-
+                setCompletions(suggestions.slice(0, 5));
             } catch (err) {
                 console.error('Ошибка при получении подсказок:', err);
                 setCompletions([]);
@@ -130,7 +153,7 @@ const SearchAndFilter = ({ userId, onSearchResults, selectedSortValue = 'popular
 
     const handleItemClick = (value) => {
         setSearchQuery(value);
-        performSearch(value);
+        setIsPopupOpen(true);
     };
 
     const handleFocus = () => {
@@ -165,41 +188,65 @@ const SearchAndFilter = ({ userId, onSearchResults, selectedSortValue = 'popular
                     <div className="search-overlay" aria-hidden="true" />
                     <div className="search-popup" ref={popupRef}>
                         <div className="popup-content">
-                            {searchQuery.trim() === '' && recentSearches.length > 0 && (
-                                <section className="popup-section">
-                                    <h3>Недавние запросы</h3>
-                                    <ul className="popup-list">
-                                        {recentSearches.map((search, index) => (
-                                            <li key={index} onClick={() => handleItemClick(search)} role="option" aria-selected="false">
-                                                {search}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </section>
-                            )}
-                            {completions.length > 0 && (
-                                <section className="popup-section">
-                                    <h3>Подсказки</h3>
-                                    <ul className="popup-list">
-                                        {completions.map((completion, index) => (
-                                            <li key={index} onClick={() => handleItemClick(completion)} role="option" aria-selected="false">
-                                                {completion}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </section>
-                            )}
-                            {categories.length > 0 && (
-                                <section className="popup-section">
-                                    <h3>Категории</h3>
-                                    <ul className="popup-list">
-                                        {categories.map((category) => (
-                                            <li key={category.id} onClick={() => handleItemClick(category.name)} role="option" aria-selected="false">
-                                                {category.parentName ? `${category.parentName} > ${category.name}` : category.name}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </section>
+                            {searchQuery.trim() === '' ? (
+                                recentSearches.length > 0 && (
+                                    <section className="popup-section">
+                                        <h3>Недавние запросы</h3>
+                                        <ul className="popup-list">
+                                            {recentSearches.map((search, index) => (
+                                                <li
+                                                    key={index}
+                                                    onClick={() => handleItemClick(search)}
+                                                    role="option"
+                                                    aria-selected="false"
+                                                >
+                                                    {search}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </section>
+                                )
+                            ) : (
+                                <>
+                                    {(categories.length > 0 || completions.length > 0) && (
+                                        <h3>Подсказки</h3>
+                                    )}
+                                    {categories.length > 0 && (
+                                        <section className="popup-section">
+                                            <ul className="popup-list category-list">
+                                                {categories.slice(0, 7).map((category) => (
+                                                    <li
+                                                        className="category"
+                                                        key={category.id}
+                                                        onClick={() => handleItemClick(category.name)}
+                                                        role="option"
+                                                        aria-selected="false"
+                                                    >
+                                                        {category.parentName
+                                                            ? `${category.parentName} > ${category.name}`
+                                                            : category.name}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </section>
+                                    )}
+                                    {completions.length > 0 && (
+                                        <section className="popup-section">
+                                            <ul className="popup-list">
+                                                {completions.map((completion, index) => (
+                                                    <li
+                                                        key={index}
+                                                        onClick={() => handleItemClick(completion)}
+                                                        role="option"
+                                                        aria-selected="false"
+                                                    >
+                                                        {completion}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </section>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>

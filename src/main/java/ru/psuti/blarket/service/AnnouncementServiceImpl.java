@@ -503,6 +503,62 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     }
 
     @Override
+    public Set<String> getDynamicCompletions(String query) {
+        Set<String> completions = new LinkedHashSet<>();
+        if (query == null || query.trim().isEmpty()) return completions;
+
+        String lowerQuery = query.trim().toLowerCase();
+        List<Announcement> announcements = announcementRepository.findAll();
+        Set<Long> categoryIds = new HashSet<>();
+
+        // Поиск по товарам и категориям
+        for (Announcement ann : announcements) {
+            if (ann.getTitle() != null && ann.getTitle().toLowerCase().contains(lowerQuery)) {
+                String[] words = ann.getTitle().split("\\s+");
+                StringBuilder suggestion = new StringBuilder();
+                int wordCount = 0;
+                for (String word : words) {
+                    suggestion.append(word).append(" ");
+                    wordCount++;
+                    if (wordCount >= 3 || wordCount >= words.length) break;
+                }
+                completions.add(suggestion.toString().trim());
+                if (ann.getCategory() != null) {
+                    categoryIds.add(ann.getCategory().getId());
+                    if (ann.getCategory().getParent() != null) {
+                        categoryIds.add(ann.getCategory().getParent().getId());
+                    }
+                }
+            }
+        }
+
+        // Добавляем товары из тех же категорий
+        for (Announcement ann : announcements) {
+            if (ann.getCategory() != null && categoryIds.contains(ann.getCategory().getId())) {
+                String[] words = ann.getTitle().split("\\s+");
+                StringBuilder suggestion = new StringBuilder();
+                int wordCount = 0;
+                for (String word : words) {
+                    suggestion.append(word).append(" ");
+                    wordCount++;
+                    if (wordCount >= 3 || wordCount >= words.length) break;
+                }
+                completions.add(suggestion.toString().trim());
+            }
+        }
+
+        // Ограничиваем до 5 слов в подсказке
+        completions = completions.stream()
+                .map(s -> {
+                    String[] words = s.split("\\s+");
+                    return String.join(" ", Arrays.copyOfRange(words, 0, Math.min(words.length, 5)));
+                })
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        return completions;
+    }
+
+    @Override
     public Announcement publishAnnouncement(Long id, User user) {
         log.info("Публикация объявления с ID: {} для пользователя с email: {}", id, user.getEmail());
         Announcement announcement = announcementRepository.findById(id)

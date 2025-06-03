@@ -180,6 +180,27 @@ public class AnnouncementController {
         }
     }
 
+    @GetMapping("/dynamic-completions")
+    public ResponseEntity<?> getDynamicCompletions(
+            @RequestParam(required = false) String query,
+            @AuthenticationPrincipal User user) {
+        if (user == null) {
+            LOGGER.warn("Неавторизован доступ к динамичным подсказкам");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        User refreshedUser = refreshUserFromDB(user);
+        if (refreshedUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+        }
+        try {
+            Set<String> completions = announcementService.getDynamicCompletions(query);
+            return ResponseEntity.ok(completions);
+        } catch (Exception e) {
+            LOGGER.error("Ошибка при получении динамичных подсказок для запроса {}: {}", query, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Ошибка сервера"));
+        }
+    }
+
     @PostMapping("/draft")
     public ResponseEntity<?> createDraft(@RequestBody CreateAnnouncementDTO dto, @AuthenticationPrincipal User user) {
         if (user == null) {
