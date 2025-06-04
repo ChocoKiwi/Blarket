@@ -379,7 +379,7 @@ public class AnnouncementController {
             Announcement announcement = announcementService.getPublicAnnouncementById(id);
             // Регистрируем посещение, visitorAddress не используется, так как берем из User
             announcementService.trackAnnouncementView(id, refreshedUser, null);
-            return ResponseEntity.ok(UpdateAnnouncementDTO.fromAnnouncement(announcement));
+            return ResponseEntity.ok(AnnouncementDTO.fromAnnouncement(announcement));
         } catch (Exception e) {
             LOGGER.error("Ошибка при получении объявления с ID {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Объявление не найдено"));

@@ -39,7 +39,6 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, externalAnnoun
             const fetchUserData = async () => {
                 try {
                     const response = await api.get(`/user/${id}`, { withCredentials: true });
-                    console.log('Fetched user data:', response.data); // Для отладки
                     setUserData(response.data);
                 } catch (err) {
                     console.error('Ошибка загрузки данных пользователя:', err);
@@ -62,11 +61,8 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, externalAnnoun
                             ? `/announcements/user/${id}?status=${selectedStatus}&sort=${selectedSortValue}`
                             : `/announcements/user/${id}?status=ACTIVE,BUSINESS&sort=${selectedSortValue}`;
                     }
-                    console.log('Fetching announcements with URL:', url); // Для отладки
                     const response = await api.get(url, { withCredentials: true });
-                    console.log('Fetched announcements:', response.data); // Для отладки
                     setAnnouncements(response.data || []);
-                    console.log('Updated announcements state:', response.data || []); // Для отладки
                     setLoading(false);
                     setError(null);
                 } catch (err) {
@@ -84,19 +80,16 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, externalAnnoun
             };
             fetchAnnouncements();
         } else {
-            console.log('Using external announcements:', externalAnnouncements); // Для отладки
             setAnnouncements(externalAnnouncements);
             setLoading(false);
         }
     }, [id, selectedStatus, selectedSortValue, onLogout, isHomePage, externalAnnouncements]);
 
     const handleSearchResults = (searchResults) => {
-        console.log('ProfileProductList: Received search results:', searchResults); // Для отладки
         setAnnouncements(searchResults);
     };
 
     const handleOptionSelect = (option, value) => {
-        console.log('Selected sort:', { option, value }); // Для отладки
         setSelectedSort(option);
         setSelectedSortValue(value);
         setIsMenuOpen(false);
@@ -125,7 +118,6 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, externalAnnoun
 
     const handleStatusSelect = (status) => {
         if (loading) return;
-        console.log('Selected status:', status); // Для отладки
         setSelectedStatus(status);
     };
 
@@ -259,6 +251,7 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, externalAnnoun
                                 price={announcement.price ? parseFloat(announcement.price) : 0}
                                 condition={getConditionText(announcement.condition)}
                                 isOwnProfile={isOwnProfile}
+                                userId={isHomePage ? announcement.userId : userData?.id} // Передаем userId
                             />
                         ))}
                     </div>

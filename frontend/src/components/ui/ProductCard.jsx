@@ -10,15 +10,15 @@ const formatPrice = (price) => {
     return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 };
 
-const ProductCard = ({ id, imageUrl, title, authorName, price, condition, isOwnProfile }) => {
+const ProductCard = ({ id, imageUrl, title, authorName, price, condition, isOwnProfile, userId }) => {
     return (
         <div className="product-card">
-            <Link to={`/profile/ads/${id}`} className="product-image-link">
+            <Link to={`/users/${userId}/product/${id}`} className="product-image-link">
                 <img src={imageUrl} alt={title} className="product-image" />
             </Link>
             <div className="product-main">
                 <div className="under-button">
-                    <Link to={`/profile/ads/${id}`} className="product-title-link">
+                    <Link to={`/users/${userId}/product/${id}`} className="product-title-link">
                         <h3 className="product-title">{title}</h3>
                     </Link>
                     <div className="product-rating">
@@ -39,7 +39,7 @@ const ProductCard = ({ id, imageUrl, title, authorName, price, condition, isOwnP
                     </div>
                 </div>
                 <Link
-                    to={`/announcement/${id}`}
+                    to={`/users/${userId}/product/${id}`}
                     className={`product-button ${isOwnProfile ? 'details-button' : 'cart-button'}`}
                 >
                     {isOwnProfile ? 'Подробнее' : 'В корзину'}
@@ -56,7 +56,8 @@ ProductCard.propTypes = {
     authorName: PropTypes.string,
     price: PropTypes.number.isRequired,
     condition: PropTypes.string,
-    isOwnProfile: PropTypes.bool, // Новый пропс
+    isOwnProfile: PropTypes.bool,
+    userId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired, // Новый пропс
 };
 
 export default ProductCard;

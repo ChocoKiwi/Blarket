@@ -1,22 +1,22 @@
-// AnnouncementCard.jsx
+// src/components/comon/AnnouncementCard.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../api';
 import icons from '../../assets/icons/icons';
-import '../../App.scss'; // Assuming you'll create a separate CSS file for styling
+import '../../App.scss';
 
 const AnnouncementCard = () => {
-    const { id } = useParams(); // Get announcement ID from URL
+    const { id } = useParams(); // ID продукта
     const [announcement, setAnnouncement] = useState(null);
     const [category, setCategory] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedImage, setSelectedImage] = useState(null);
 
-    // Format price with spaces (e.g., 100000 -> 100 000)
+    // Форматирование цены
     const formatPrice = (price) => price?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') || '0';
 
-    // Map condition from DB to display text
+    // Отображение состояния товара
     const getConditionText = (condition) => {
         switch (condition) {
             case 'NEW':
@@ -26,27 +26,30 @@ const AnnouncementCard = () => {
             case 'BUYSELL':
                 return 'Купля-продажа';
             default:
-                return '';
+                return 'Не указано';
         }
     };
 
-    // Fetch announcement and category data
+    // Загрузка данных объявления и категории
     const fetchData = async () => {
         setLoading(true);
         try {
-            // Fetch announcement by ID
+            // Запрос объявления
             const { data: announcementData } = await api.get(`/announcements/${id}`, { withCredentials: true });
             setAnnouncement({
                 ...announcementData,
-                imageUrls: announcementData.imageUrls || [],
+                imageUrls: Array.isArray(announcementData.imageUrls) ? announcementData.imageUrls : [],
                 views: announcementData.views || 0,
+                quantity: announcementData.quantity || 1,
                 commentsCount: announcementData.commentsCount || 0,
             });
 
-            // Fetch category with parent if categoryId exists
+            // Запрос категории, если categoryId существует
             if (announcementData.categoryId) {
-                const { data: categoryData } = await api.get(`/categories/with-parent/${announcementData.categoryId}`);
+                const { data: categoryData } = await api.get(`/categories/with-parent/${announcementData.categoryId}`, { withCredentials: true });
                 setCategory(categoryData);
+            } else {
+                setCategory({ child: { name: 'Без категории' } });
             }
 
             setLoading(false);
@@ -66,14 +69,14 @@ const AnnouncementCard = () => {
         fetchData();
     }, [id]);
 
-    // Set the first image as default when announcement loads
+    // Установка первого изображения по умолчанию
     useEffect(() => {
         if (announcement?.imageUrls?.length > 0) {
             setSelectedImage(announcement.imageUrls[0]);
         }
     }, [announcement]);
 
-    // Handle image selection
+    // Обработка выбора изображения
     const handleImageSelect = (imageUrl) => {
         setSelectedImage(imageUrl);
     };
@@ -101,23 +104,18 @@ const AnnouncementCard = () => {
 
     return (
         <div className="announcement-card">
-            {/* Image and Content Container */}
             <div className="main-container">
-                {/* Image Container */}
                 <div className="phone-date-container">
-                    {/* Preview Image */}
                     {selectedImage && (
-                        <div className='image-upload'>
-                            <img src={selectedImage} alt="Preview" className="preview-image"/>
+                        <div className="image-upload">
+                            <img src={selectedImage} alt="Preview" className="preview-image" />
                         </div>
                     )}
-                    {/* Image Selection Container */}
                     {announcement.imageUrls.length > 0 && (
                         <div className="image-group">
                             {announcement.imageUrls.slice(0, 3).map((imageUrl, index) => (
-                                <div className="image-upload swipe ">
+                                <div key={index} className="image-upload swipe">
                                     <img
-                                        key={index}
                                         src={imageUrl}
                                         alt={`Thumbnail ${index + 1}`}
                                         className={`upload-label ${selectedImage === imageUrl ? 'selected' : ''}`}
@@ -129,22 +127,16 @@ const AnnouncementCard = () => {
                     )}
                 </div>
 
-                {/* Content Container */}
                 <div className="content-container">
-                    {/* Header and Main Content */}
                     <div className="main-content">
-                        {/* Announcement Header */}
                         <div className="announcement-header">
-                        {/* Rating and Breadcrumbs */}
                             <div className="rating-breadcrumbs">
-                                {/* Rating */}
                                 <div className="rating-container">
-                                    <p className="rating">0.0</p>
+                                    <p className="rating">{announcement.rating || '0.0'}</p>
                                     <Link to="#reviews" className="reviews-link">
-                                        Нет отзывов
+                                        {announcement.commentsCount === 0 ? 'Нет отзывов' : `${announcement.commentsCount} отзывов`}
                                     </Link>
                                 </div>
-                                {/* Breadcrumbs */}
                                 <div className="breadcrumbs">
                                     {category?.parent?.name && (
                                         <>
@@ -155,21 +147,16 @@ const AnnouncementCard = () => {
                                     <p>{category?.child?.name || 'Без категории'}</p>
                                 </div>
                             </div>
-                            {/* Title */}
                             <h2>{announcement.title}</h2>
                         </div>
-                        {/* Description */}
                         <p className="description">{announcement.description}</p>
                     </div>
 
-                    {/* Footer */}
                     <div className="footer-container">
-                        {/* Price and Condition */}
                         <div className="price-condition">
                             <p className="price">{formatPrice(announcement.price)} ₽</p>
-                            <p className="condition">{getConditionText(announcement.itemCondition)}</p>
+                            <p className="condition">{getConditionText(announcement.condition)}</p>
                         </div>
-                        {/* Quantity */}
                         <p className="quantity">
                             Остаток: {announcement.quantity === 1 ? '1 шт.' : `${announcement.quantity} шт.`}
                         </p>
@@ -177,11 +164,9 @@ const AnnouncementCard = () => {
                 </div>
             </div>
 
-            {/* Reviews Section */}
             <div className="reviews-section">
                 <h2>Отзывы покупателей</h2>
                 <div className="reviews-container">
-                    {/* Placeholder for reviews (to be implemented later) */}
                     <p className="text-placeholder">Отзывы пока отсутствуют</p>
                 </div>
             </div>

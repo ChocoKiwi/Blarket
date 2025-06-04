@@ -74,38 +74,28 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
     @Override
     public Announcement createAnnouncement(CreateAnnouncementDTO dto, User user, boolean isDraft) {
-        log.info("Создание объявления для пользователя с email: {}", user.getEmail());
-
-        Category category = null;
-        if (dto.getCategoryId() != null) {
-            category = categoryRepository.findById(dto.getCategoryId())
-                    .orElseThrow(() -> new RuntimeException(ERROR_CATEGORY_NOT_FOUND));
+        Announcement announcement = new Announcement();
+        announcement.setUser(user);
+        announcement.setTitle(dto.getTitle());
+        announcement.setDescription(dto.getDescription());
+        announcement.setPrice(dto.getPrice());
+        // Проверка и установка imageUrls
+        List<String> imageUrls = dto.getImageUrls() != null ? dto.getImageUrls() : Collections.emptyList();
+        for (String url : imageUrls) {
+            if (!url.startsWith("data:image/") || !url.contains(";base64,")) {
+                throw new IllegalArgumentException("Некорректный формат изображения: " + url);
+            }
         }
-
-        Announcement announcement = Announcement.builder()
-                .title(dto.getTitle())
-                .description(dto.getDescription())
-                .price(dto.getPrice())
-                .quantity(dto.getQuantity())
-                .user(user)
-                .address(dto.getAddress())
-                .condition(dto.getItemCondition())
-                .category(category)
-                .deliveryOptions(dto.getDeliveryOptions())
-                .createdAt(LocalDateTime.now())
-                .status(isDraft ? Announcement.Status.DRAFT : determineStatus(dto))
-                .build();
-
-        Optional.ofNullable(dto.getImageUrls())
-                .ifPresent(urls -> {
-                    try {
-                        announcement.setImageUrls(objectMapper.writeValueAsString(urls));
-                    } catch (Exception e) {
-                        log.error("Ошибка при преобразовании imageUrls: {}", e.getMessage(), e);
-                        throw new RuntimeException(ERROR_IMAGE_URLS, e);
-                    }
-                });
-
+        announcement.setImageUrls(String.join(",", imageUrls)); // Сохраняем как строку с запятыми
+        announcement.setAddress(dto.getAddress());
+        announcement.setQuantity(dto.getQuantity() != null ? dto.getQuantity() : 1);
+        announcement.setCondition(dto.getItemCondition());
+        announcement.setStatus(isDraft ? Announcement.Status.DRAFT : Announcement.Status.ACTIVE);
+        if (dto.getCategoryId() != null) {
+            Category category = categoryRepository.findById(dto.getCategoryId())
+                    .orElseThrow(() -> new IllegalArgumentException("Категория не найдена"));
+            announcement.setCategory(category);
+        }
         return announcementRepository.save(announcement);
     }
 
@@ -120,39 +110,30 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
     @Override
     public Announcement updateAnnouncement(Long id, UpdateAnnouncementDTO dto, User user, boolean isDraft) {
-        log.info("Обновление объявления с ID: {} для пользователя с email: {}", id, user.getEmail());
         Announcement announcement = announcementRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException(ERROR_NOT_FOUND));
+                .orElseThrow(() -> new IllegalArgumentException("Объявление не найдено"));
         if (!announcement.getUser().getId().equals(user.getId())) {
-            log.warn("Попытка обновления объявления с ID: {} пользователем без прав: {}", id, user.getEmail());
-            throw new RuntimeException(ERROR_NOT_AUTHORIZED);
+            throw new SecurityException("Нет прав для редактирования объявления");
         }
-
-        Optional.ofNullable(dto.getTitle()).ifPresent(announcement::setTitle);
-        Optional.ofNullable(dto.getDescription()).ifPresent(announcement::setDescription);
-        Optional.ofNullable(dto.getPrice()).ifPresent(announcement::setPrice);
-        Optional.ofNullable(dto.getQuantity()).ifPresent(announcement::setQuantity);
-        Optional.ofNullable(dto.getItemCondition()).ifPresent(announcement::setCondition);
-        Optional.ofNullable(dto.getImageUrls()).ifPresent(urls -> {
-            try {
-                announcement.setImageUrls(objectMapper.writeValueAsString(urls));
-            } catch (Exception e) {
-                log.error("Ошибка при преобразовании imageUrls: {}", e.getMessage(), e);
-                throw new RuntimeException(ERROR_IMAGE_URLS, e);
+        announcement.setTitle(dto.getTitle());
+        announcement.setDescription(dto.getDescription());
+        announcement.setPrice(dto.getPrice());
+        List<String> imageUrls = dto.getImageUrls() != null ? dto.getImageUrls() : Collections.emptyList();
+        for (String url : imageUrls) {
+            if (!url.startsWith("data:image/") || !url.contains(";base64,")) {
+                throw new IllegalArgumentException("Некорректный формат изображения: " + url);
             }
-        });
-        Optional.ofNullable(dto.getDeliveryOptions()).ifPresent(announcement::setDeliveryOptions);
-
+        }
+        announcement.setImageUrls(String.join(",", imageUrls));
+        announcement.setAddress(dto.getAddress());
+        announcement.setQuantity(dto.getQuantity() != null ? dto.getQuantity() : 1);
+        announcement.setCondition(dto.getItemCondition());
+        announcement.setStatus(isDraft ? Announcement.Status.DRAFT : Announcement.Status.ACTIVE);
         if (dto.getCategoryId() != null) {
             Category category = categoryRepository.findById(dto.getCategoryId())
-                    .orElseThrow(() -> new RuntimeException(ERROR_CATEGORY_NOT_FOUND));
+                    .orElseThrow(() -> new IllegalArgumentException("Категория не найдена"));
             announcement.setCategory(category);
-        } else {
-            announcement.setCategory(null);
         }
-
-        announcement.setStatus(isDraft ? Announcement.Status.DRAFT : determineStatus(dto));
-        announcement.setUpdatedAt(LocalDateTime.now());
         return announcementRepository.save(announcement);
     }
 
