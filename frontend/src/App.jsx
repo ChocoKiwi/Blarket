@@ -8,6 +8,7 @@ import Home from './components/pages/Home';
 import ProductPage from './components/pages/ProductPage';
 import Wallet from "./components/comon/Wallet";
 import SellerProfile from './components/pages/SellerProfile';
+import Cart from "./components/pages/Cart";
 import api from './api';
 import './App.scss';
 
@@ -66,7 +67,7 @@ function App() {
                 <Route path="/" element={auth ? <Home user={user} setUser={setUser} onLogout={onLogout} /> : <Navigate to="/login" />} />
                 <Route path="/users/:userId/product/:id" element={auth ? <ProductPage user={user} setUser={setUser} onLogout={onLogout} /> : <Navigate to="/login" />} />
                 <Route path="/users/:id" element={auth ? <SellerProfile user={user} onLogout={onLogout} /> : <Navigate to="/login" />} />
-                <Route path="/wallet" element={auth ? <Wallet user={user} onLogout={onLogout} /> : <Navigate to="/login" />} />
+                <Route path="/cart" element={auth ? <Cart user={user} onLogout={onLogout} /> : <Navigate to="/login" />} />
             </Routes>
         </Router>
     );

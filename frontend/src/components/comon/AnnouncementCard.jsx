@@ -124,6 +124,19 @@ const AnnouncementCard = () => {
         return <p className="text-placeholder">Объявление не найдено</p>;
     }
 
+    const addToCart = async () => {
+        if (quantity > announcement.quantity) {
+            alert(`Нельзя добавить больше ${announcement.quantity} шт.`);
+            return;
+        }
+        try {
+            await api.post('/cart/add', { announcementId: id, quantity }, { withCredentials: true });
+            alert('Товар добавлен в корзину');
+        } catch (e) {
+            alert('Ошибка: ' + (e.response?.data?.message || e.message));
+        }
+    };
+
     return (
         <div className="announcement-card">
             <div className="phone-date-container">
@@ -199,7 +212,9 @@ const AnnouncementCard = () => {
                                 +
                             </button>
                         </div>
-                        <button className="buy-button">Купить</button>
+                        <button className="buy-button" onClick={addToCart}>
+                            В корзину
+                        </button>
                     </div>
                 </div>
                 <div className="additional-info">
