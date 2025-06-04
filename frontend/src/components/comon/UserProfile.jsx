@@ -1,10 +1,11 @@
 // src/components/comon/UserProfile.jsx
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../../api';
 import '../../App.scss';
 import UserAvatar from '../../assets/icons/user-avatar.svg';
-import icons from '../../assets/icons/icons';
+import Phone from '../../assets/icons/phone.svg';
+import Email from '../../assets/icons/message.svg';
 
 const getRoleDisplayName = (roles) => {
     if (!roles || !Array.isArray(roles) || roles.length === 0) {
@@ -15,6 +16,21 @@ const getRoleDisplayName = (roles) => {
     if (normalizedRoles.includes('PRO')) return 'Предприниматель';
     if (normalizedRoles.includes('USER')) return 'Пользователь';
     return 'Не определено';
+};
+
+const formatPhoneNumber = (phone) => {
+    if (!phone) return '';
+    // Remove all non-digit characters
+    const digits = phone.replace(/\D/g, '');
+    // Ensure we have at least 10 digits
+    if (digits.length < 10) return phone; // Return original if invalid
+    // Format as 7 (XXX) XXX XX-XX
+    const countryCode = digits.length === 11 ? digits[0] : '7';
+    const areaCode = digits.substr(-10, 3);
+    const firstPart = digits.substr(-7, 3);
+    const secondPart = digits.substr(-4, 2);
+    const thirdPart = digits.substr(-2, 2);
+    return `${countryCode} (${areaCode}) ${firstPart} ${secondPart}-${thirdPart}`;
 };
 
 const UserProfile = ({ user }) => {
@@ -95,6 +111,35 @@ const UserProfile = ({ user }) => {
                     <p className="name">{seller.name || 'Без имени'}</p>
                     <p className="role">{getRoleDisplayName(seller.roles)}</p>
                 </div>
+            </div>
+            <div className="contact-info">
+                {seller.email && (
+                    <div className="contact-item">
+                        <img
+                            src={Email}
+                            alt="Email Icon"
+                            className="contact-icon"
+                            onError={() => console.error('Ошибка загрузки иконки email')}
+                        />
+                        <span className="contact-text email">{seller.email}</span>
+                    </div>
+                )}
+                {seller.phone && (
+                    <div className="contact-item">
+                        <img
+                            src={Phone}
+                            alt="Phone Icon"
+                            className="contact-icon"
+                            onError={() => console.error('Ошибка загрузки иконки телефона')}
+                        />
+                        <span className="contact-text">{formatPhoneNumber(seller.phone)}</span>
+                    </div>
+                )}
+            </div>
+            <div className="button-container">
+                <Link to={`/users/${seller.id}`} className="button">
+                    Перейти в профиль
+                </Link>
             </div>
         </div>
     );

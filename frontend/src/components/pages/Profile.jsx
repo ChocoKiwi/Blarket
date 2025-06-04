@@ -31,6 +31,7 @@ function ProfileMenu({ user, handleLogout, handleAvatarChange }) {
     ];
     const location = useLocation();
     const isInfoPage = location.pathname === '/profile/info';
+    const isProfileView = location.pathname.startsWith('/profile/info/');
 
     const roles = user?.roles || [];
 
@@ -44,7 +45,7 @@ function ProfileMenu({ user, handleLogout, handleAvatarChange }) {
                         className="avatar"
                         onClick={isInfoPage ? () => document.getElementById('avatarInput').click() : null}
                         style={{ cursor: isInfoPage ? 'pointer' : 'default' }}
-                        onError={() => console.error('Ошибка загрузки аватарки в ProfileMenu')}
+                        attractive                    onError={() => console.error('Ошибка загрузки аватарки в ProfileMenu')}
                     />
                     {isInfoPage && (
                         <>
@@ -94,6 +95,11 @@ function ProfileMenu({ user, handleLogout, handleAvatarChange }) {
                 {isInfoPage && (
                     <Link to={`/profile/info/${user.id}`} className="button">
                         Посмотреть профиль
+                    </Link>
+                )}
+                {isProfileView && (
+                    <Link to="/profile/info" className="button">
+                        Редактировать профиль
                     </Link>
                 )}
             </div>

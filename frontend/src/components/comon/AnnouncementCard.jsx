@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../../api';
 import icons from '../../assets/icons/icons';
 import '../../App.scss';
+import Star from '../../assets/icons/star1.svg'
 
 const AnnouncementCard = () => {
     const { id } = useParams(); // ID продукта
@@ -12,6 +13,8 @@ const AnnouncementCard = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedImage, setSelectedImage] = useState(null);
+    const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+    const [quantity, setQuantity] = useState(1);
 
     // Форматирование цены
     const formatPrice = (price) => price?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') || '0';
@@ -20,7 +23,7 @@ const AnnouncementCard = () => {
     const getConditionText = (condition) => {
         switch (condition) {
             case 'NEW':
-                return 'Новый';
+                return 'Новое';
             case 'USED':
                 return 'Б/У';
             case 'BUYSELL':
@@ -81,6 +84,25 @@ const AnnouncementCard = () => {
         setSelectedImage(imageUrl);
     };
 
+    // Переключение полного описания
+    const toggleDescription = () => {
+        setIsDescriptionExpanded(!isDescriptionExpanded);
+    };
+
+    // Увеличение количества
+    const incrementQuantity = () => {
+        if (quantity < announcement.quantity) {
+            setQuantity(quantity + 1);
+        }
+    };
+
+    // Уменьшение количества
+    const decrementQuantity = () => {
+        if (quantity > 1) {
+            setQuantity(quantity - 1);
+        }
+    };
+
     if (loading) {
         return <div className="text-center loading">Загрузка...</div>;
     }
@@ -104,70 +126,88 @@ const AnnouncementCard = () => {
 
     return (
         <div className="announcement-card">
-            <div className="main-container">
-                <div className="phone-date-container">
-                    {selectedImage && (
-                        <div className="image-upload">
-                            <img src={selectedImage} alt="Preview" className="preview-image" />
-                        </div>
-                    )}
-                    {announcement.imageUrls.length > 0 && (
-                        <div className="image-group">
-                            {announcement.imageUrls.slice(0, 3).map((imageUrl, index) => (
-                                <div key={index} className="image-upload swipe">
-                                    <img
-                                        src={imageUrl}
-                                        alt={`Thumbnail ${index + 1}`}
-                                        className={`upload-label ${selectedImage === imageUrl ? 'selected' : ''}`}
-                                        onClick={() => handleImageSelect(imageUrl)}
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                <div className="content-container">
-                    <div className="main-content">
-                        <div className="announcement-header">
-                            <div className="rating-breadcrumbs">
-                                <div className="rating-container">
-                                    <p className="rating">{announcement.rating || '0.0'}</p>
-                                    <Link to="#reviews" className="reviews-link">
-                                        {announcement.commentsCount === 0 ? 'Нет отзывов' : `${announcement.commentsCount} отзывов`}
-                                    </Link>
-                                </div>
-                                <div className="breadcrumbs">
-                                    {category?.parent?.name && (
-                                        <>
-                                            <p>{category.parent.name}</p>
-                                            <span>&gt;</span>
-                                        </>
-                                    )}
-                                    <p>{category?.child?.name || 'Без категории'}</p>
-                                </div>
+            <div className="phone-date-container">
+                {selectedImage && (
+                    <div className="image-upload">
+                        <img src={selectedImage} alt="Preview" className="preview-image" />
+                    </div>
+                )}
+                {announcement.imageUrls.length > 0 && (
+                    <div className="image-group">
+                        {announcement.imageUrls.slice(0, 3).map((imageUrl, index) => (
+                            <div key={index} className="image-upload swipe">
+                                <img
+                                    src={imageUrl}
+                                    alt={`Thumbnail ${index + 1}`}
+                                    className={`upload-label ${selectedImage === imageUrl ? 'selected' : ''}`}
+                                    onClick={() => handleImageSelect(imageUrl)}
+                                />
                             </div>
-                            <h2>{announcement.title}</h2>
-                        </div>
-                        <p className="description">{announcement.description}</p>
+                        ))}
                     </div>
-
-                    <div className="footer-container">
-                        <div className="price-condition">
-                            <p className="price">{formatPrice(announcement.price)} ₽</p>
-                            <p className="condition">{getConditionText(announcement.condition)}</p>
+                )}
+            </div>
+            <div className="info-block">
+                <div className="main-info">
+                    <div className="categories">
+                        {category?.parent?.name && (
+                            <>
+                                <span className="main-category">{category.parent.name}</span>
+                                <span className="separator">—</span>
+                            </>
+                        )}
+                        <span className="sub-category">{category?.child?.name || 'Без категории'}</span>
+                    </div>
+                    <h2 className="title">{announcement.title}</h2>
+                    <div className="rating">
+                        <div className="stars">
+                            {[...Array(5)].map((_, index) => (
+                                <span key={index} className="star">
+                                    <img src={Star}/>
+                                </span>
+                            ))}
+                            <span className="rating-text">
+                                {announcement.rating || '0.0'} ({announcement.commentsCount || 0} отзывов)
+                            </span>
                         </div>
-                        <p className="quantity">
-                            Остаток: {announcement.quantity === 1 ? '1 шт.' : `${announcement.quantity} шт.`}
+                    </div>
+                    <div className="price-status">
+                        <span className="price">{formatPrice(announcement.price)} ₽</span>
+                        <span className="status">{getConditionText(announcement.condition)}</span>
+                    </div>
+                    <div className="description">
+                        <p className={`description-text ${isDescriptionExpanded ? '' : 'truncated'}`}>
+                            {announcement.description}
                         </p>
+                        {announcement.description?.length > 100 && (
+                            <button className="read-more" onClick={toggleDescription}>
+                                {isDescriptionExpanded ? 'Свернуть' : 'Читать далее'}
+                            </button>
+                        )}
+                    </div>
+                    <div className="button-quantity">
+                        <div className="counter">
+                            <button className="counter-btn" onClick={decrementQuantity} disabled={quantity <= 1}>
+                                -
+                            </button>
+                            <span className="counter-value">{quantity}</span>
+                            <button
+                                className="counter-btn"
+                                onClick={incrementQuantity}
+                                disabled={quantity >= announcement.quantity}
+                            >
+                                +
+                            </button>
+                        </div>
+                        <button className="buy-button">Купить</button>
                     </div>
                 </div>
-            </div>
-
-            <div className="reviews-section">
-                <h2>Отзывы покупателей</h2>
-                <div className="reviews-container">
-                    <p className="text-placeholder">Отзывы пока отсутствуют</p>
+                <div className="additional-info">
+                    <p className="address"> <b>Адрес</b>{announcement.address || 'Адрес не указан'}</p>
+                    <p className="quantity">
+                        <b>Колличество:</b>{announcement.quantity === 1 ? '1 шт.' : `${announcement.quantity} шт.`}
+                    </p>
+                    <p className="product-id"><b>ID товара:</b>{announcement.id}</p>
                 </div>
             </div>
         </div>

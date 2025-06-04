@@ -20,6 +20,9 @@ import Rest from './solar_restart-square-bold.svg?react'
 import Info from './solar_info-circle-bold.svg?react'
 import Tuning from './solar_tuning-2-bold.svg?react'
 import Sort from './solar_sort-vertical-bold.svg'
+import Star1 from './star1.svg'
+import Star0 from './star0.svg'
+import Star05 from './star05.svg'
 
 const icons = {
     home: HomeIcon,
@@ -43,7 +46,10 @@ const icons = {
     rest: Rest,
     info: Info,
     sort: Sort,
-    tuning: Tuning
+    tuning: Tuning,
+    star1: Star1,
+    star0: Star0,
+    star05: Star05,
 };
 
 export default icons;
