@@ -24,15 +24,12 @@ import java.util.List;
 public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {"/api/registration", "/api/login", "/api/logout"};
-    private static final List<String> ALLOWED_ORIGINS = List.of("http://localhost:5173", "http://localhost:5174");
+    private static final List<String> ALLOWED_ORIGINS = List.of("http://localhost:5173", "http://localhost:5174", "http://localhost:3000");
     private static final List<String> ALLOWED_METHODS = List.of("GET", "POST", "PUT", "DELETE", "OPTIONS");
     private static final String API_PATH = "/api/**";
     private static final String ALL_PATHS = "/**";
     private static final String UNAUTHORIZED_MESSAGE = "Неавторизован";
 
-    /**
-     * Настраивает цепочку фильтров безопасности.
-     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -64,9 +61,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /**
-     * Настраивает CORS для разрешения кросс-доменных запросов.
-     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
@@ -80,17 +74,11 @@ public class SecurityConfig {
         return source;
     }
 
-    /**
-     * Предоставляет шифровщик паролей BCrypt.
-     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    /**
-     * Предоставляет менеджер аутентификации.
-     */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
