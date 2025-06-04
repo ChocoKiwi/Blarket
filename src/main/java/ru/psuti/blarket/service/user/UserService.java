@@ -1,4 +1,4 @@
-package ru.psuti.blarket.service;
+package ru.psuti.blarket.service.user;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,10 +8,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import ru.psuti.blarket.dto.UserRegistrationDTO;
-import ru.psuti.blarket.dto.UserUpdateDTO;
-import ru.psuti.blarket.model.Role;
-import ru.psuti.blarket.model.User;
+import ru.psuti.blarket.dto.user.UserRegistrationDTO;
+import ru.psuti.blarket.dto.user.UserUpdateDTO;
+import ru.psuti.blarket.model.user.Role;
+import ru.psuti.blarket.model.user.User;
 import ru.psuti.blarket.repository.UserRepository;
 
 import java.util.ArrayList;

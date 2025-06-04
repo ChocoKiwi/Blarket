@@ -1,7 +1,8 @@
-package ru.psuti.blarket.model;
+package ru.psuti.blarket.model.announcement;
 
 import jakarta.persistence.*;
 import lombok.*;
+import ru.psuti.blarket.model.user.User;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

@@ -1,7 +1,7 @@
-package ru.psuti.blarket.dto;
+package ru.psuti.blarket.dto.user;
 
 import lombok.Data;
-import ru.psuti.blarket.model.Role;
+import ru.psuti.blarket.model.user.Role;
 
 import java.time.LocalDate;
 import java.util.ArrayList;

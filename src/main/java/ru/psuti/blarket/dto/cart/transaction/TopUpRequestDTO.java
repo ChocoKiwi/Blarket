@@ -1,4 +1,4 @@
-package ru.psuti.blarket.dto;
+package ru.psuti.blarket.dto.cart.transaction;
 
 import lombok.Data;
 

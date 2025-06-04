@@ -1,10 +1,10 @@
 // AnnouncementRepository.java
-package ru.psuti.blarket.repository;
+package ru.psuti.blarket.repository.announcement;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import ru.psuti.blarket.model.Announcement;
-import ru.psuti.blarket.model.User;
+import ru.psuti.blarket.model.announcement.Announcement;
+import ru.psuti.blarket.model.user.User;
 
 import java.util.List;
 

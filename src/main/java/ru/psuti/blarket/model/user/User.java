@@ -1,4 +1,4 @@
-package ru.psuti.blarket.model;
+package ru.psuti.blarket.model.user;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
@@ -6,6 +6,7 @@ import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import ru.psuti.blarket.model.announcement.Announcement;
 
 import java.time.LocalDate;
 import java.util.ArrayList;

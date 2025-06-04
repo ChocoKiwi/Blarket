@@ -6,8 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.psuti.blarket.model.Category;
-import ru.psuti.blarket.service.CategoryService;
+import ru.psuti.blarket.model.announcement.Category;
+import ru.psuti.blarket.service.announcement.CategoryService;
 
 import java.util.List;
 

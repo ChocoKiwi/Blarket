@@ -1,8 +1,8 @@
-package ru.psuti.blarket.repository;
+package ru.psuti.blarket.repository.announcement;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-import ru.psuti.blarket.model.Category;
+import ru.psuti.blarket.model.announcement.Category;
 
 import java.util.List;
 import java.util.Optional;

@@ -1,13 +1,13 @@
 // CategoryService.java
-package ru.psuti.blarket.service;
+package ru.psuti.blarket.service.announcement;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
-import ru.psuti.blarket.model.Category;
-import ru.psuti.blarket.repository.CategoryRepository;
+import ru.psuti.blarket.model.announcement.Category;
+import ru.psuti.blarket.repository.announcement.CategoryRepository;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;

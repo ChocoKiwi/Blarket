@@ -1,12 +1,12 @@
-package ru.psuti.blarket.service;
+package ru.psuti.blarket.service.announcement;
 
-import ru.psuti.blarket.dto.AnnouncementDTO;
-import ru.psuti.blarket.dto.CreateAnnouncementDTO;
-import ru.psuti.blarket.dto.UpdateAnnouncementDTO;
-import ru.psuti.blarket.model.Announcement;
-import ru.psuti.blarket.model.AnnouncementView;
-import ru.psuti.blarket.model.Category;
-import ru.psuti.blarket.model.User;
+import ru.psuti.blarket.dto.announcement.AnnouncementDTO;
+import ru.psuti.blarket.dto.announcement.CreateAnnouncementDTO;
+import ru.psuti.blarket.dto.announcement.UpdateAnnouncementDTO;
+import ru.psuti.blarket.model.announcement.Announcement;
+import ru.psuti.blarket.model.announcement.AnnouncementView;
+import ru.psuti.blarket.model.announcement.Category;
+import ru.psuti.blarket.model.user.User;
 
 import java.time.LocalDateTime;
 import java.util.List;

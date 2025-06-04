@@ -2,6 +2,7 @@ package ru.psuti.blarket.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import ru.psuti.blarket.model.user.User;
 
 @Entity
 @Table(name = "wallets")

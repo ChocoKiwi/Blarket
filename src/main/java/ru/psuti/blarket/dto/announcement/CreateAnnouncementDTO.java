@@ -1,7 +1,7 @@
-package ru.psuti.blarket.dto;
+package ru.psuti.blarket.dto.announcement;
 
 import lombok.Data;
-import ru.psuti.blarket.model.Announcement;
+import ru.psuti.blarket.model.announcement.Announcement;
 
 import java.math.BigDecimal;
 import java.util.List;

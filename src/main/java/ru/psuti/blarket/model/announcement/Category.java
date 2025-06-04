@@ -1,4 +1,4 @@
-package ru.psuti.blarket.model;
+package ru.psuti.blarket.model.announcement;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;

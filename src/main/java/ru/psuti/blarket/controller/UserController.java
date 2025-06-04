@@ -14,11 +14,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.*;
-import ru.psuti.blarket.dto.UserLoginDTO;
-import ru.psuti.blarket.dto.UserRegistrationDTO;
-import ru.psuti.blarket.dto.UserUpdateDTO;
+import ru.psuti.blarket.dto.user.UserLoginDTO;
+import ru.psuti.blarket.dto.user.UserRegistrationDTO;
+import ru.psuti.blarket.dto.user.UserUpdateDTO;
 import ru.psuti.blarket.repository.UserRepository;
-import ru.psuti.blarket.service.UserService;
+import ru.psuti.blarket.service.user.UserService;
 
 import java.util.HashMap;
 import java.util.Map;

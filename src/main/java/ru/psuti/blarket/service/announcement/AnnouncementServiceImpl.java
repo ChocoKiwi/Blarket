@@ -1,4 +1,4 @@
-package ru.psuti.blarket.service;
+package ru.psuti.blarket.service.announcement;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -6,17 +6,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
-import ru.psuti.blarket.dto.AnnouncementDTO;
-import ru.psuti.blarket.dto.CreateAnnouncementDTO;
-import ru.psuti.blarket.dto.UpdateAnnouncementDTO;
-import ru.psuti.blarket.model.Announcement;
-import ru.psuti.blarket.model.AnnouncementView;
-import ru.psuti.blarket.model.Category;
-import ru.psuti.blarket.model.User;
-import ru.psuti.blarket.repository.AnnouncementRepository;
-import ru.psuti.blarket.repository.AnnouncementViewRepository;
-import ru.psuti.blarket.repository.CategoryRepository;
-import ru.psuti.blarket.repository.UserRepository;
+import ru.psuti.blarket.dto.announcement.AnnouncementDTO;
+import ru.psuti.blarket.dto.announcement.CreateAnnouncementDTO;
+import ru.psuti.blarket.dto.announcement.UpdateAnnouncementDTO;
+import ru.psuti.blarket.model.announcement.Announcement;
+import ru.psuti.blarket.model.announcement.AnnouncementView;
+import ru.psuti.blarket.model.announcement.Category;
+import ru.psuti.blarket.model.user.User;
+import ru.psuti.blarket.repository.announcement.AnnouncementRepository;
+import ru.psuti.blarket.repository.announcement.AnnouncementViewRepository;
+import ru.psuti.blarket.repository.announcement.CategoryRepository;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

@@ -1,8 +1,10 @@
 // AnnouncementView.java
-package ru.psuti.blarket.model;
+package ru.psuti.blarket.model.announcement;
 
 import jakarta.persistence.*;
 import lombok.*;
+import ru.psuti.blarket.model.user.User;
+
 import java.time.LocalDateTime;
 
 @Entity

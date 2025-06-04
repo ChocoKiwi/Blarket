@@ -1,4 +1,4 @@
-package ru.psuti.blarket.service;
+package ru.psuti.blarket.service.user;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;

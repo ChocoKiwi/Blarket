@@ -11,12 +11,13 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import ru.psuti.blarket.dto.TopUpRequestDTO;
-import ru.psuti.blarket.dto.TransactionDTO;
-import ru.psuti.blarket.dto.WalletDTO;
+import ru.psuti.blarket.dto.cart.transaction.TopUpRequestDTO;
+import ru.psuti.blarket.dto.cart.transaction.TransactionDTO;
+import ru.psuti.blarket.dto.cart.transaction.WalletDTO;
 import ru.psuti.blarket.model.Transaction;
 import ru.psuti.blarket.model.TransactionStatus;
 import ru.psuti.blarket.model.Wallet;
+import ru.psuti.blarket.model.user.User;
 import ru.psuti.blarket.repository.TransactionRepository;
 import ru.psuti.blarket.repository.WalletRepository;
 
@@ -45,7 +46,7 @@ public class WalletService {
         Wallet wallet = walletRepository.findByUserId(userId);
         if (wallet == null) {
             wallet = Wallet.builder()
-                    .user(ru.psuti.blarket.model.User.builder().id(userId).build())
+                    .user(User.builder().id(userId).build())
                     .balance(0.0)
                     .build();
             walletRepository.save(wallet);
@@ -67,7 +68,7 @@ public class WalletService {
         Wallet wallet = walletRepository.findByUserId(request.getUserId());
         if (wallet == null) {
             wallet = Wallet.builder()
-                    .user(ru.psuti.blarket.model.User.builder().id(request.getUserId()).build())
+                    .user(User.builder().id(request.getUserId()).build())
                     .balance(0.0)
                     .build();
             walletRepository.save(wallet);
@@ -126,7 +127,7 @@ public class WalletService {
         Wallet wallet = walletRepository.findByUserId(userId);
         if (wallet == null) {
             wallet = Wallet.builder()
-                    .user(ru.psuti.blarket.model.User.builder().id(userId).build())
+                    .user(User.builder().id(userId).build())
                     .balance(0.0)
                     .build();
             walletRepository.save(wallet);

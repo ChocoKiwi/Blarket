@@ -1,7 +1,7 @@
 package ru.psuti.blarket.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import ru.psuti.blarket.model.User;
+import ru.psuti.blarket.model.user.User;
 
 import java.util.Optional;
 

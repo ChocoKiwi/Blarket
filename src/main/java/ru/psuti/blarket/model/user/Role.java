@@ -1,4 +1,4 @@
-package ru.psuti.blarket.model;
+package ru.psuti.blarket.model.user;
 
 public enum Role {
     USER,
