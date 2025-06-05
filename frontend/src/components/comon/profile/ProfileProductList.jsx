@@ -250,8 +250,10 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, externalAnnoun
                                 authorName={isHomePage ? announcement.authorName || 'Без имени' : userData?.name || 'Без имени'}
                                 price={announcement.price ? parseFloat(announcement.price) : 0}
                                 condition={getConditionText(announcement.condition)}
+                                quantitySold={announcement.quantitySold}
                                 isOwnProfile={isOwnProfile}
                                 userId={isHomePage ? announcement.userId : userData?.id} // Передаем userId
+                                status={announcement.status}
                             />
                         ))}
                     </div>

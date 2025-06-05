@@ -203,7 +203,14 @@ const AnnouncementsList = () => {
                     onClick={() => handleStatusSelect('ARCHIVED')}
                     disabled={loading}
                 >
-                    <span>Архивированные</span>
+                    <span>Архив</span>
+                </button>
+                <button
+                    className={`condition-chip ${selectedStatus === 'SOLD' ? 'selected' : ''} ${loading ? 'disabled' : ''}`}
+                    onClick={() => handleStatusSelect('SOLD')}
+                    disabled={loading}
+                >
+                    <span>Проданные</span>
                 </button>
             </div>
             {loading ? (

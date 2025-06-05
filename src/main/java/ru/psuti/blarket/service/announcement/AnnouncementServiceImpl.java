@@ -16,8 +16,8 @@ import ru.psuti.blarket.model.user.User;
 import ru.psuti.blarket.repository.announcement.AnnouncementRepository;
 import ru.psuti.blarket.repository.announcement.AnnouncementViewRepository;
 import ru.psuti.blarket.repository.announcement.CategoryRepository;
+import ru.psuti.blarket.repository.cart.OrderRepository;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -40,8 +40,8 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     private final CategoryRepository categoryRepository;
     private final ObjectMapper objectMapper;
     private final AnnouncementViewRepository announcementViewRepository;
+    private final OrderRepository orderRepository; // Добавляем OrderRepository
 
-    // Вспомогательный метод для преобразования Announcement в AnnouncementDTO
     private AnnouncementDTO toAnnouncementDTO(Announcement announcement) {
         AnnouncementDTO dto = new AnnouncementDTO();
         dto.setId(announcement.getId());
@@ -53,7 +53,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                     ? objectMapper.readValue(announcement.getImageUrls(), new TypeReference<List<String>>() {})
                     : List.of());
         } catch (Exception e) {
-            log.error("Ошибка при разборе imageUrls для объявления ID {}: {}", announcement.getId(), e.getMessage(), e);
             dto.setImageUrls(List.of());
         }
         dto.setAddress(announcement.getAddress());
@@ -65,9 +64,12 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         dto.setRating(announcement.getRating());
         dto.setCategoryId(announcement.getCategory() != null ? announcement.getCategory().getId() : null);
         dto.setCategoryName(announcement.getCategory() != null ? announcement.getCategory().getName() : null);
-        dto.setUserId(announcement.getUser() != null ? announcement.getUser().getId() : null); // Устанавливаем userId
-        dto.setAuthorName(announcement.getUser() != null ? announcement.getUser().getName() : null); // Устанавливаем имя автора
+        dto.setUserId(announcement.getUser() != null ? announcement.getUser().getId() : null);
+        dto.setAuthorName(announcement.getUser() != null ? announcement.getUser().getName() : null);
         dto.setStatus(announcement.getStatus());
+        // Устанавливаем количество проданных товаров
+        Integer quantitySold = orderRepository.sumQuantityByAnnouncementId(announcement.getId());
+        dto.setQuantitySold(quantitySold != null ? quantitySold : 0);
         return dto;
     }
 
@@ -78,33 +80,27 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         announcement.setTitle(dto.getTitle());
         announcement.setDescription(dto.getDescription());
         announcement.setPrice(dto.getPrice());
-        // Проверка и установка imageUrls
         List<String> imageUrls = dto.getImageUrls() != null ? dto.getImageUrls() : Collections.emptyList();
         for (String url : imageUrls) {
             if (!url.startsWith("data:image/") || !url.contains(";base64,")) {
-                throw new IllegalArgumentException("Некорректный формат изображения: " + url);
+                throw new IllegalArgumentException("Некорректный формат изображения: должно начинаться с 'data:image/' и содержать ';base64,'");
             }
         }
-        announcement.setImageUrls(String.join(",", imageUrls)); // Сохраняем как строку с запятыми
+        try {
+            announcement.setImageUrls(imageUrls.isEmpty() ? "[]" : objectMapper.writeValueAsString(imageUrls));
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Ошибка при сохранении изображений");
+        }
         announcement.setAddress(dto.getAddress());
         announcement.setQuantity(dto.getQuantity() != null ? dto.getQuantity() : 1);
         announcement.setCondition(dto.getItemCondition());
-        announcement.setStatus(isDraft ? Announcement.Status.DRAFT : Announcement.Status.ACTIVE);
+        announcement.setStatus(isDraft ? Announcement.Status.DRAFT : determineStatus(dto));
         if (dto.getCategoryId() != null) {
             Category category = categoryRepository.findById(dto.getCategoryId())
                     .orElseThrow(() -> new IllegalArgumentException("Категория не найдена"));
             announcement.setCategory(category);
         }
         return announcementRepository.save(announcement);
-    }
-
-    private Announcement.Status determineStatus(CreateAnnouncementDTO dto) {
-        if (dto.getPrice() != null && dto.getPrice().compareTo(BUSINESS_PRICE_THRESHOLD) > 0 ||
-                dto.getItemCondition() == Announcement.Condition.BUYSELL ||
-                (dto.getQuantity() != null && dto.getQuantity() > BUSINESS_QUANTITY_THRESHOLD)) {
-            return Announcement.Status.BUSINESS;
-        }
-        return Announcement.Status.ACTIVE;
     }
 
     @Override
@@ -120,14 +116,18 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         List<String> imageUrls = dto.getImageUrls() != null ? dto.getImageUrls() : Collections.emptyList();
         for (String url : imageUrls) {
             if (!url.startsWith("data:image/") || !url.contains(";base64,")) {
-                throw new IllegalArgumentException("Некорректный формат изображения: " + url);
+                throw new IllegalArgumentException("Некорректный формат изображения: должно начинаться с 'data:image/' и содержать ';base64,'");
             }
         }
-        announcement.setImageUrls(String.join(",", imageUrls));
+        try {
+            announcement.setImageUrls(imageUrls.isEmpty() ? "[]" : objectMapper.writeValueAsString(imageUrls));
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Ошибка при сохранении изображений");
+        }
         announcement.setAddress(dto.getAddress());
         announcement.setQuantity(dto.getQuantity() != null ? dto.getQuantity() : 1);
         announcement.setCondition(dto.getItemCondition());
-        announcement.setStatus(isDraft ? Announcement.Status.DRAFT : Announcement.Status.ACTIVE);
+        announcement.setStatus(isDraft ? Announcement.Status.DRAFT : determineStatus(dto));
         if (dto.getCategoryId() != null) {
             Category category = categoryRepository.findById(dto.getCategoryId())
                     .orElseThrow(() -> new IllegalArgumentException("Категория не найдена"));
@@ -137,6 +137,15 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     }
 
     private Announcement.Status determineStatus(UpdateAnnouncementDTO dto) {
+        if (dto.getPrice() != null && dto.getPrice().compareTo(BUSINESS_PRICE_THRESHOLD) > 0 ||
+                dto.getItemCondition() == Announcement.Condition.BUYSELL ||
+                (dto.getQuantity() != null && dto.getQuantity() > BUSINESS_QUANTITY_THRESHOLD)) {
+            return Announcement.Status.BUSINESS;
+        }
+        return Announcement.Status.ACTIVE;
+    }
+
+    private Announcement.Status determineStatus(CreateAnnouncementDTO dto) {
         if (dto.getPrice() != null && dto.getPrice().compareTo(BUSINESS_PRICE_THRESHOLD) > 0 ||
                 dto.getItemCondition() == Announcement.Condition.BUYSELL ||
                 (dto.getQuantity() != null && dto.getQuantity() > BUSINESS_QUANTITY_THRESHOLD)) {
@@ -260,7 +269,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                 break;
         }
 
-        // Применяем сортировку
         announcements = announcements.stream()
                 .sorted(comparator)
                 .collect(Collectors.toList());
@@ -278,7 +286,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                 .filter(ann -> ann.getStatus() == Announcement.Status.ACTIVE || ann.getStatus() == Announcement.Status.BUSINESS)
                 .collect(Collectors.toList());
 
-        // Сортировка объявлений
         Comparator<Announcement> comparator;
         switch (sort != null ? sort.toLowerCase() : "popularity") {
             case "newest":
@@ -320,7 +327,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             String searchQuery = query.trim().toLowerCase();
             LinkedHashSet<Announcement> filteredAnnouncements = new LinkedHashSet<>();
 
-            // 1. Exact match for title or category
             for (Announcement ann : announcements) {
                 boolean titleMatch = ann.getTitle() != null && ann.getTitle().toLowerCase().contains(searchQuery);
                 boolean categoryMatch = ann.getCategory() != null && ann.getCategory().getName().toLowerCase().contains(searchQuery);
@@ -329,7 +335,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                 }
             }
 
-            // 2. Split query into words and match, excluding stop words
             String[] keywords = searchQuery.split("\\s+");
             for (String keyword : keywords) {
                 if (keyword.length() < 2 || STOP_WORDS.contains(keyword)) continue;
@@ -345,7 +350,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             announcements = new ArrayList<>(filteredAnnouncements);
         }
 
-        // Sort announcements
         Comparator<Announcement> comparator;
         switch (sort != null ? sort.toLowerCase() : "popularity") {
             case "newest":
@@ -385,13 +389,11 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         String lowerPrefix = prefix.trim().toLowerCase();
         Set<String> completions = new LinkedHashSet<>();
 
-        // Get all active/business announcements
         List<Announcement> announcements = announcementRepository.findAll()
                 .stream()
                 .filter(ann -> ann.getStatus() == Announcement.Status.ACTIVE || ann.getStatus() == Announcement.Status.BUSINESS)
                 .collect(Collectors.toList());
 
-        // Split titles into words and find matches
         for (Announcement ann : announcements) {
             if (ann.getTitle() != null) {
                 String[] words = ann.getTitle().toLowerCase().split("\\s+");
@@ -420,7 +422,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             String searchQuery = query.trim().toLowerCase();
             LinkedHashSet<Announcement> filteredAnnouncements = new LinkedHashSet<>();
 
-            // Поиск по названию и категории
             for (Announcement ann : announcements) {
                 boolean titleMatch = ann.getTitle() != null && ann.getTitle().toLowerCase().contains(searchQuery);
                 boolean categoryMatch = ann.getCategory() != null && ann.getCategory().getName().toLowerCase().contains(searchQuery);
@@ -429,7 +430,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                 }
             }
 
-            // Разбиваем запрос на слова, исключая стоп-слова
             String[] keywords = searchQuery.split("\\s+");
             for (String keyword : keywords) {
                 if (keyword.length() < 2 || STOP_WORDS.contains(keyword)) continue;
@@ -445,7 +445,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             announcements = new ArrayList<>(filteredAnnouncements);
         }
 
-        // Извлекаем категории (главные и дочерние) из найденных объявлений
         List<Category> result = new ArrayList<>();
         for (Announcement ann : announcements) {
             if (ann.getCategory() != null) {
@@ -457,7 +456,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             }
         }
 
-        // Удаляем дубликаты
         return result.stream()
                 .distinct()
                 .collect(Collectors.toList());
@@ -495,7 +493,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         List<Announcement> announcements = announcementRepository.findAll();
         Set<Long> categoryIds = new HashSet<>();
 
-        // Поиск по товарам и категориям
         for (Announcement ann : announcements) {
             if (ann.getTitle() != null && ann.getTitle().toLowerCase().contains(lowerQuery)) {
                 String[] words = ann.getTitle().split("\\s+");
@@ -516,7 +513,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             }
         }
 
-        // Добавляем товары из тех же категорий
         for (Announcement ann : announcements) {
             if (ann.getCategory() != null && categoryIds.contains(ann.getCategory().getId())) {
                 String[] words = ann.getTitle().split("\\s+");
@@ -531,7 +527,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             }
         }
 
-        // Ограничиваем до 5 слов в подсказке
         completions = completions.stream()
                 .map(s -> {
                     String[] words = s.split("\\s+");
@@ -550,14 +545,12 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         Announcement announcement = announcementRepository.findById(announcementId)
                 .orElseThrow(() -> new RuntimeException("Объявление не найдено"));
 
-        // Не засчитываем просмотр, если пользователь — владелец объявления
         if (user != null && announcement.getUser() != null && user.getId().equals(announcement.getUser().getId())) {
             log.info("Просмотр объявления ID: {} владельцем {} не засчитывается",
                     announcementId, user.getEmail());
             return;
         }
 
-        // Проверяем, посещал ли пользователь объявление в последние 60 секунд
         LocalDateTime recentThreshold = LocalDateTime.now().minusSeconds(60);
         boolean alreadyVisited = user != null &&
                 announcementViewRepository.existsByAnnouncementAndUserAndVisitTimeAfter(
@@ -569,12 +562,10 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             return;
         }
 
-        // Определяем адрес: берем из User, если авторизован, иначе "Неизвестно"
         String addressToRecord = (user != null && user.getAddress() != null)
                 ? user.getAddress()
                 : "Неизвестно";
 
-        // Создаем запись о посещении
         AnnouncementView view = AnnouncementView.builder()
                 .announcement(announcement)
                 .user(user)
@@ -584,7 +575,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
         announcementViewRepository.save(view);
 
-        // Обновляем счетчик просмотров (все посещения)
         long viewCount = announcementViewRepository.countByAnnouncement(announcement);
         announcement.setViews((int) viewCount);
         announcementRepository.save(announcement);

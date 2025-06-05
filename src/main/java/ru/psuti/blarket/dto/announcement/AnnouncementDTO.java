@@ -32,6 +32,7 @@ public class AnnouncementDTO {
     private Announcement.Status status;
     private Long userId;
     private String authorName;
+    private Integer quantitySold;
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 

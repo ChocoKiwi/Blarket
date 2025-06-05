@@ -65,6 +65,12 @@ public class OrderService {
 
             // Уменьшаем количество в объявлении
             announcement.setQuantity(announcement.getQuantity() - item.getQuantity());
+
+            // Устанавливаем статус SOLD, если количество стало 0
+            if (announcement.getQuantity() == 0) {
+                announcement.setStatus(Announcement.Status.SOLD);
+            }
+
             announcementRepository.save(announcement);
 
             // Создаём заказ

@@ -11,7 +11,7 @@ const formatPrice = (price) => {
     return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 };
 
-const ProductCard = ({ id, imageUrl, title, authorName, price, condition, isOwnProfile, userId }) => {
+const ProductCard = ({ id, imageUrl, title, authorName, price, condition, status, quantitySold, isOwnProfile, userId }) => {
     const addToCart = async () => {
         try {
             await api.post('/cart/add', { announcementId: id, quantity: 1 }, { withCredentials: true });
@@ -21,16 +21,40 @@ const ProductCard = ({ id, imageUrl, title, authorName, price, condition, isOwnP
         }
     };
 
+    // Определяем отображаемый текст статуса
+    const statusDisplay = {
+        ACTIVE: 'Активно',
+        BUSINESS: 'Бизнес',
+        SOLD: 'Продано',
+        DRAFT: 'Черновик',
+        ARCHIVED: 'В архиве',
+    };
+
+    const isSold = status === 'SOLD';
+    const buttonClass = `product-button ${isOwnProfile || isSold ? 'details-button' : 'cart-button'} ${isSold ? 'sold-button' : ''}`;
+
     return (
-        <div className="product-card">
-            <Link to={`/users/${userId}/product/${id}`} className="product-image-link">
-                <img src={imageUrl} alt={title} className="product-image" />
-            </Link>
+        <div className={`product-card ${status}`}>
+            {isSold ? (
+                <div className="product-image-link disabled">
+                    <img src={imageUrl} alt={title} className="product-image" />
+                </div>
+            ) : (
+                <Link to={`/users/${userId}/product/${id}`} className="product-image-link">
+                    <img src={imageUrl} alt={title} className="product-image" />
+                </Link>
+            )}
             <div className="product-main">
                 <div className="under-button">
-                    <Link to={`/users/${userId}/product/${id}`} className="product-title-link">
-                        <h3 className="product-title">{title}</h3>
-                    </Link>
+                    {isSold ? (
+                        <div className="product-title-link disabled">
+                            <h3 className="product-title">{title}</h3>
+                        </div>
+                    ) : (
+                        <Link to={`/users/${userId}/product/${id}`} className="product-title-link">
+                            <h3 className="product-title">{title}</h3>
+                        </Link>
+                    )}
                     <div className="product-rating">
                         <div className="stars">
                             {Array(5)
@@ -51,11 +75,11 @@ const ProductCard = ({ id, imageUrl, title, authorName, price, condition, isOwnP
                     </div>
                 </div>
                 <button
-                    onClick={isOwnProfile ? null : addToCart}
-                    className={`product-button ${isOwnProfile ? 'details-button' : 'cart-button'}`}
-                    disabled={isOwnProfile}
+                    onClick={isOwnProfile || isSold ? null : addToCart}
+                    className={buttonClass}
+                    disabled={isOwnProfile || isSold}
                 >
-                    {isOwnProfile ? 'Подробнее' : 'В корзину'}
+                    {isSold ? `Продано: ${quantitySold} шт.` : (isOwnProfile ? 'Подробнее' : 'В корзину')}
                 </button>
             </div>
         </div>
@@ -69,6 +93,7 @@ ProductCard.propTypes = {
     authorName: PropTypes.string,
     price: PropTypes.number.isRequired,
     condition: PropTypes.string,
+    status: PropTypes.oneOf(['ACTIVE', 'BUSINESS', 'SOLD', 'DRAFT', 'ARCHIVED']), // Добавляем status
     isOwnProfile: PropTypes.bool,
     userId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
 };

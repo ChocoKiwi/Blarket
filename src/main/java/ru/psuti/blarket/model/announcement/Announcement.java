@@ -60,6 +60,6 @@ public class Announcement {
     }
 
     public enum Status {
-        ACTIVE, BUSINESS, DRAFT, ARCHIVED
+        ACTIVE, BUSINESS, DRAFT, ARCHIVED, SOLD
     }
 }
