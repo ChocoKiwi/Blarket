@@ -9,20 +9,30 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "orders")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Order {
+
+    public enum OrderStatus {
+        PENDING, COMPLETED, CANCELLED
+    }
+
+    public enum ItemStatus {
+        CART, DEFERRED
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY) // Ленивая загрузка для оптимизации
+    @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY) // Ленивая загрузка
+    @ManyToOne
     @JoinColumn(name = "announcement_id", nullable = false)
     private Announcement announcement;
 
@@ -30,16 +40,16 @@ public class Order {
     private Integer quantity;
 
     @Column(nullable = false)
-    private Double totalPrice; // Изменено на Double для соответствия Wallet
+    private Double totalPrice;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderStatus status;
 
-    @Column(nullable = false)
-    private LocalDateTime createdAt;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "item_status", nullable = false)
+    private ItemStatus itemStatus; // Новое поле для статуса товара
 
-    public enum OrderStatus {
-        PENDING, COMPLETED, CANCELLED
-    }
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
 }

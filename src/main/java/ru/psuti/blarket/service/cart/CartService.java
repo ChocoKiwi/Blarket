@@ -1,11 +1,14 @@
 package ru.psuti.blarket.service.cart;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.psuti.blarket.dto.cart.CartItemDTO;
 import ru.psuti.blarket.model.announcement.Announcement;
 import ru.psuti.blarket.model.cart.CartItem;
 import ru.psuti.blarket.model.user.User;
+import ru.psuti.blarket.model.cart.Order.ItemStatus;
 import ru.psuti.blarket.repository.cart.CartItemRepository;
 import ru.psuti.blarket.repository.UserRepository;
 import ru.psuti.blarket.repository.announcement.AnnouncementRepository;
@@ -20,11 +23,14 @@ public class CartService {
     private final CartItemRepository cartItemRepository;
     private final UserRepository userRepository;
     private final AnnouncementRepository announcementRepository;
+    private final ObjectMapper objectMapper; // Добавляем ObjectMapper
 
-    public List<CartItemDTO> getCartItems(Long userId) {
+    public List<CartItemDTO> getCartItems(Long userId, ItemStatus itemStatus) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
-        List<CartItem> items = cartItemRepository.findByUser(user);
+        List<CartItem> items = itemStatus == null
+                ? cartItemRepository.findByUser(user)
+                : cartItemRepository.findByUserAndItemStatus(user, itemStatus);
         return items.stream()
                 .filter(item -> item.getAnnouncement() != null)
                 .map(this::toDTO)
@@ -37,19 +43,30 @@ public class CartService {
         dto.setAnnouncementId(item.getAnnouncement().getId());
         dto.setAnnouncementTitle(item.getAnnouncement().getTitle());
         dto.setPrice(item.getAnnouncement().getPrice());
-        String[] imageUrls = item.getAnnouncement().getImageUrls() != null
-                ? item.getAnnouncement().getImageUrls().split(",")
-                : new String[0];
+
+        String imageUrlsJson = item.getAnnouncement().getImageUrls();
+        String[] imageUrls = new String[0];
+        if (imageUrlsJson != null) {
+            try {
+                imageUrls = objectMapper.readValue(imageUrlsJson, new TypeReference<String[]>() {});
+            } catch (Exception e) {
+                // Если JSON некорректен, пробуем split как запасной вариант
+                imageUrls = imageUrlsJson.split(",");
+            }
+        }
         dto.setImageUrl(imageUrls.length > 0 ? imageUrls[0] : null);
+
         dto.setQuantity(item.getQuantity());
-        dto.setAvailableQuantity(item.getAnnouncement().getQuantity()); // Устанавливаем доступное количество
+        dto.setAvailableQuantity(item.getAnnouncement().getQuantity());
+        dto.setItemStatus(item.getItemStatus());
         return dto;
     }
 
     public void clearCart(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
-        cartItemRepository.deleteByUser(user);
+        List<CartItem> cartItems = cartItemRepository.findByUserAndItemStatus(user, ItemStatus.CART);
+        cartItemRepository.deleteAll(cartItems);
     }
 
     public CartItemDTO updateCartItemQuantity(Long cartItemId, Long userId, Integer newQuantity) {
@@ -68,7 +85,7 @@ public class CartService {
         return toDTO(cartItemRepository.save(cartItem));
     }
 
-    public CartItemDTO addToCart(Long userId, Long announcementId, Integer quantity) {
+    public CartItemDTO addToCart(Long userId, Long announcementId, Integer quantity, ItemStatus itemStatus) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
         Announcement announcement = announcementRepository.findById(announcementId)
@@ -78,7 +95,6 @@ public class CartService {
             throw new RuntimeException("Количество должно быть больше 0");
         }
 
-        // Проверяем доступное количество в объявлении
         if (quantity > announcement.getQuantity()) {
             throw new RuntimeException("Запрошенное количество превышает доступное: " + announcement.getQuantity());
         }
@@ -88,15 +104,16 @@ public class CartService {
                         .user(user)
                         .announcement(announcement)
                         .quantity(0)
+                        .itemStatus(itemStatus)
                         .build());
 
-        // Проверяем, чтобы общее количество в корзине не превышало доступное
         int newQuantity = cartItem.getQuantity() + quantity;
         if (newQuantity > announcement.getQuantity()) {
             throw new RuntimeException("Общее количество в корзине не может превышать: " + announcement.getQuantity());
         }
 
         cartItem.setQuantity(newQuantity);
+        cartItem.setItemStatus(itemStatus);
         return toDTO(cartItemRepository.save(cartItem));
     }
 
@@ -107,5 +124,15 @@ public class CartService {
             throw new RuntimeException("Доступ запрещен");
         }
         cartItemRepository.deleteById(cartItemId);
+    }
+
+    public CartItemDTO deferCartItem(Long cartItemId, Long userId, boolean defer) {
+        CartItem cartItem = cartItemRepository.findById(cartItemId)
+                .orElseThrow(() -> new RuntimeException("Элемент корзины не найден"));
+        if (!cartItem.getUser().getId().equals(userId)) {
+            throw new RuntimeException("Доступ запрещен");
+        }
+        cartItem.setItemStatus(defer ? ItemStatus.DEFERRED : ItemStatus.CART);
+        return toDTO(cartItemRepository.save(cartItem));
     }
 }

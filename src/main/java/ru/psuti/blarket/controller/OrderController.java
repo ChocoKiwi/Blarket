@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.*;
 import ru.psuti.blarket.dto.cart.CartItemDTO;
 import ru.psuti.blarket.model.user.User;
 import ru.psuti.blarket.service.cart.OrderService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -17,19 +19,37 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OrderController {
 
+    private static final Logger logger = LoggerFactory.getLogger(OrderController.class);
     private final OrderService orderService;
 
     @PostMapping("/checkout")
     public ResponseEntity<String> checkout(
             @AuthenticationPrincipal User user,
             @RequestBody CheckoutRequest request) {
+        logger.info("Processing checkout for userId: {}", user.getId());
         try {
             orderService.checkout(user.getId(), request.getCartItems());
             return ResponseEntity.ok("Заказ успешно оформлен");
         } catch (IllegalArgumentException | IllegalStateException e) {
+            logger.error("Checkout failed: {}", e.getMessage());
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
+            logger.error("Server error during checkout: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body("Ошибка сервера: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/purchased")
+    public ResponseEntity<List<CartItemDTO>> getPurchasedItems(
+            @AuthenticationPrincipal User user,
+            @RequestParam(defaultValue = "popularity") String sort) {
+        logger.info("Fetching purchased items for userId: {} with sort: {}", user.getId(), sort);
+        try {
+            List<CartItemDTO> purchasedItems = orderService.getPurchasedItems(user.getId(), sort);
+            return ResponseEntity.ok(purchasedItems);
+        } catch (Exception e) {
+            logger.error("Error fetching purchased items: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(null);
         }
     }
 
@@ -37,6 +57,5 @@ public class OrderController {
     @Getter
     static class CheckoutRequest {
         private List<CartItemDTO> cartItems;
-
     }
 }

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import ru.psuti.blarket.model.announcement.Announcement;
 import ru.psuti.blarket.model.user.User;
+import ru.psuti.blarket.model.cart.Order.ItemStatus;
 
 @Entity
 @Table(name = "cart_items")
@@ -27,4 +28,8 @@ public class CartItem {
 
     @Column(nullable = false)
     private Integer quantity;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "item_status", nullable = false)
+    private ItemStatus itemStatus = ItemStatus.CART; // Новое поле, по умолчанию CART
 }

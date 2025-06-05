@@ -1,69 +1,61 @@
-// src/components/comon/CartItems.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../../api';
 import '../../App.scss';
 
-const CartItems = ({ user, onLogout, setBalance }) => {
-    const [cartItems, setCartItems] = useState([]);
+const CartItems = ({ user, onLogout, setBalance, itemStatus, setCartItems }) => {
+    const [cartItems, setLocalCartItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const navigate = useNavigate();
 
     const formatPrice = (price) => price?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') || '0';
 
     const fetchCart = useCallback(async () => {
         setLoading(true);
         try {
-            const { data } = await api.get('/cart', { withCredentials: true });
-            setCartItems(data);
+            const { data } = await api.get(`/cart?status=${itemStatus}`, { withCredentials: true });
+            setLocalCartItems(data);
+            setCartItems(data); // Update parent state
             setLoading(false);
         } catch (e) {
             setError(e.response?.status === 401 ? 'Неавторизован' : e.response?.data?.message || 'Ошибка загрузки корзины');
-            if (e.response?.status === 401) onLogout();
+            if (e.response?.status === 401) {
+                onLogout();
+                navigate('/login');
+            }
             setLoading(false);
         }
-    }, [onLogout]);
+    }, [onLogout, itemStatus, setCartItems, navigate]);
 
     const updateQuantity = useCallback(
         async (cartItemId, newQuantity) => {
             if (newQuantity < 1) return;
             try {
                 const { data } = await api.put(`/cart/${cartItemId}`, { quantity: newQuantity }, { withCredentials: true });
-                setCartItems(cartItems.map((item) => (item.id === cartItemId ? { ...item, quantity: data.quantity } : item)));
+                const updatedItems = cartItems.map((item) => (item.id === cartItemId ? { ...item, quantity: data.quantity } : item));
+                setLocalCartItems(updatedItems);
+                setCartItems(updatedItems); // Update parent state
             } catch (e) {
-                alert('Ошибка: ' + (e.response?.data?.message || e.message));
+                setError(e.response?.data?.message || 'Ошибка обновления количества');
             }
         },
-        [cartItems]
+        [cartItems, setCartItems]
     );
 
     const removeFromCart = useCallback(
         async (cartItemId) => {
             try {
                 await api.delete(`/cart/${cartItemId}`, { withCredentials: true });
-                setCartItems(cartItems.filter((item) => item.id !== cartItemId));
+                const updatedItems = cartItems.filter((item) => item.id !== cartItemId);
+                setLocalCartItems(updatedItems);
+                setCartItems(updatedItems); // Update parent state
             } catch (e) {
                 setError(e.response?.data?.message || 'Ошибка удаления товара');
             }
         },
-        [cartItems]
+        [cartItems, setCartItems]
     );
-
-    const handleCheckout = async () => {
-        const totalPrice = cartItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
-        if (totalPrice > balance) {
-            alert('Недостаточно средств. Пополните кошелёк.');
-            return;
-        }
-        try {
-            await api.post('/orders/checkout', { cartItems }, { withCredentials: true });
-            alert('Заказ успешно оформлен');
-            setCartItems([]); // Очищаем корзину
-            // Баланс обновится через Wallet
-        } catch (e) {
-            alert('Ошибка при оформлении: ' + (e.response?.data?.message || e.message));
-        }
-    };
 
     useEffect(() => {
         fetchCart();
@@ -94,8 +86,6 @@ const CartItems = ({ user, onLogout, setBalance }) => {
             </div>
         );
     }
-
-    const totalPrice = cartItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
 
     return (
         <div className="cart-content">
@@ -133,12 +123,6 @@ const CartItems = ({ user, onLogout, setBalance }) => {
                         </div>
                     </div>
                 ))}
-            </div>
-            <div className="cart-total">
-                <p>Итого: {formatPrice(totalPrice)} ₽</p>
-                <button className="checkout-button" onClick={handleCheckout}>
-                    Оформить заказ
-                </button>
             </div>
         </div>
     );

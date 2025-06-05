@@ -8,8 +8,8 @@ import '../../../App.scss';
 import icons from '../../../assets/icons/icons';
 import check from '../../../assets/icons/sucsses.svg';
 
-const ProfileProductList = ({ user, onLogout, isHomePage = false, externalAnnouncements }) => {
-    const { id } = useParams();
+const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = false, isDeferred = false, externalAnnouncements }) => {
+    const { id: paramId } = useParams();
     const [announcements, setAnnouncements] = useState(externalAnnouncements || []);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -19,7 +19,8 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, externalAnnoun
     const [selectedStatus, setSelectedStatus] = useState(null);
     const timeoutRef = useRef(null);
     const [userData, setUserData] = useState(null);
-    const isOwnProfile = !isHomePage && user && id && parseInt(id) === user.id;
+    const userId = isPurchased || isDeferred ? user?.id : (isHomePage ? null : paramId);
+    const isOwnProfile = !isHomePage && !isPurchased && !isDeferred && user && userId && parseInt(userId) === user.id;
 
     const getConditionText = (condition) => {
         switch (condition) {
@@ -35,10 +36,10 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, externalAnnoun
     };
 
     useEffect(() => {
-        if (!isHomePage) {
+        if (!isHomePage && !isPurchased && !isDeferred && userId) {
             const fetchUserData = async () => {
                 try {
-                    const response = await api.get(`/user/${id}`, { withCredentials: true });
+                    const response = await api.get(`/user/${userId}`, { withCredentials: true });
                     setUserData(response.data);
                 } catch (err) {
                     console.error('Ошибка загрузки данных пользователя:', err);
@@ -46,7 +47,7 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, externalAnnoun
             };
             fetchUserData();
         }
-    }, [id, isHomePage]);
+    }, [userId, isHomePage, isPurchased, isDeferred]);
 
     useEffect(() => {
         if (!externalAnnouncements) {
@@ -54,39 +55,102 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, externalAnnoun
                 setLoading(true);
                 try {
                     let url;
-                    if (isHomePage) {
+                    if (isPurchased) {
+                        url = `/orders/purchased?sort=${selectedSortValue}`;
+                    } else if (isDeferred) {
+                        url = `/cart?itemStatus=DEFERRED&sort=${selectedSortValue}`;
+                    } else if (isHomePage) {
                         url = `/announcements/all-except-current?sort=${selectedSortValue}`;
-                    } else {
+                    } else if (userId) {
                         url = selectedStatus
-                            ? `/announcements/user/${id}?status=${selectedStatus}&sort=${selectedSortValue}`
-                            : `/announcements/user/${id}?status=ACTIVE,BUSINESS&sort=${selectedSortValue}`;
+                            ? `/announcements/user/${userId}?status=${selectedStatus}&sort=${selectedSortValue}`
+                            : `/announcements/user/${userId}?status=ACTIVE,BUSINESS&sort=${selectedSortValue}`;
+                    } else {
+                        throw new Error('Пользователь не определён');
                     }
                     const response = await api.get(url, { withCredentials: true });
-                    setAnnouncements(response.data || []);
+                    const data = response.data || [];
+                    const normalizedData = data.map((item) => {
+                        let imageUrls = [];
+                        if (isPurchased || isDeferred) {
+                            // Для CartItemDTO imageUrl может быть JSON-строкой или строкой
+                            try {
+                                const parsed = JSON.parse(item.imageUrl || '[]');
+                                imageUrls = Array.isArray(parsed) ? parsed : [item.imageUrl];
+                            } catch {
+                                imageUrls = item.imageUrl ? [item.imageUrl] : [];
+                            }
+                        } else {
+                            // Для AnnouncementDTO imageUrls — строка с запятыми
+                            imageUrls = typeof item.imageUrls === 'string' && item.imageUrls
+                                ? item.imageUrls.split(',')
+                                : (Array.isArray(item.imageUrls) ? item.imageUrls : []);
+                        }
+
+                        return {
+                            id: item.announcementId || item.id,
+                            imageUrls,
+                            title: item.announcementTitle || item.title,
+                            authorName: item.authorName || userData?.name || 'Без имени',
+                            price: item.price ? parseFloat(item.price) : 0,
+                            condition: getConditionText(item.condition),
+                            quantitySold: item.quantitySold || item.quantity || 0,
+                            userId: item.userId || (userData?.id ?? user?.id),
+                            status: item.status || 'ACTIVE',
+                        };
+                    });
+                    setAnnouncements(normalizedData);
                     setLoading(false);
                     setError(null);
                 } catch (err) {
-                    console.error('Ошибка загрузки объявлений:', err);
+                    console.error('Ошибка загрузки данных:', err);
                     if (err.response?.status === 401) {
                         setError('Неавторизован');
                         onLogout();
                     } else if (err.response?.status === 404) {
-                        setError('Пользователь или объявления не найдены');
+                        setError('Данные не найдены');
                     } else {
-                        setError('Ошибка загрузки объявлений');
+                        setError('Ошибка загрузки данных: ' + err.message);
                     }
                     setLoading(false);
                 }
             };
             fetchAnnouncements();
         } else {
-            setAnnouncements(externalAnnouncements);
+            setAnnouncements(externalAnnouncements || []);
             setLoading(false);
         }
-    }, [id, selectedStatus, selectedSortValue, onLogout, isHomePage, externalAnnouncements]);
+    }, [userId, selectedStatus, selectedSortValue, onLogout, isHomePage, isPurchased, isDeferred, userData, user, externalAnnouncements]);
 
     const handleSearchResults = (searchResults) => {
-        setAnnouncements(searchResults);
+        const normalizedResults = searchResults.map((item) => {
+            let imageUrls = [];
+            if (isPurchased || isDeferred) {
+                try {
+                    const parsed = JSON.parse(item.imageUrl || '[]');
+                    imageUrls = Array.isArray(parsed) ? parsed : [item.imageUrl];
+                } catch {
+                    imageUrls = item.imageUrl ? [item.imageUrl] : [];
+                }
+            } else {
+                imageUrls = typeof item.imageUrls === 'string' && item.imageUrls
+                    ? item.imageUrls.split(',')
+                    : (Array.isArray(item.imageUrls) ? item.imageUrls : []);
+            }
+
+            return {
+                id: item.announcementId || item.id,
+                imageUrls,
+                title: item.announcementTitle || item.title,
+                authorName: item.authorName || userData?.name || 'Без имени',
+                price: item.price ? parseFloat(item.price) : 0,
+                condition: getConditionText(item.condition),
+                quantitySold: item.quantitySold || item.quantity || 0,
+                userId: item.userId || (userData?.id ?? user?.id),
+                status: item.status || 'ACTIVE',
+            };
+        });
+        setAnnouncements(normalizedResults);
     };
 
     const handleOptionSelect = (option, value) => {
@@ -138,16 +202,18 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, externalAnnoun
 
     return (
         <div className="profile-product-list">
-            {!isHomePage && (
+            {!isHomePage && !isPurchased && !isDeferred && (
                 <SearchAndFilter
-                    userId={id}
+                    userId={userId}
                     onSearchResults={handleSearchResults}
                     selectedSortValue={selectedSortValue}
                 />
             )}
             <div className="flex">
                 <div className="title-sort">
-                    <h2>{isHomePage ? 'Все объявления' : 'Объявления пользователя'}</h2>
+                    <h2>
+                        {isPurchased ? 'Купленные товары' : isDeferred ? 'Отложенные товары' : isHomePage ? 'Все объявления' : 'Объявления пользователя'}
+                    </h2>
                     <div className="filter-sort-container">
                         <div
                             className="sort-container"
@@ -213,21 +279,17 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, externalAnnoun
                                 </div>
                             </div>
                         </div>
-                        {!isHomePage && (
+                        {!isHomePage && !isPurchased && !isDeferred && (
                             <div className="status-filter">
                                 <button
-                                    className={`condition-chip ${selectedStatus === null ? 'selected' : ''} ${
-                                        loading ? 'disabled' : ''
-                                    }`}
+                                    className={`condition-chip ${selectedStatus === null ? 'selected' : ''} ${loading ? 'disabled' : ''}`}
                                     onClick={() => handleStatusSelect(null)}
                                     disabled={loading}
                                 >
                                     <span>Активные</span>
                                 </button>
                                 <button
-                                    className={`condition-chip ${selectedStatus === 'SOLD' ? 'selected' : ''} ${
-                                        loading ? 'disabled' : ''
-                                    }`}
+                                    className={`condition-chip ${selectedStatus === 'SOLD' ? 'selected' : ''} ${loading ? 'disabled' : ''}`}
                                     onClick={() => handleStatusSelect('SOLD')}
                                     disabled={loading}
                                 >
@@ -238,7 +300,9 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, externalAnnoun
                     </div>
                 </div>
                 {announcements.length === 0 ? (
-                    <p className="text-placeholder">Объявления отсутствуют</p>
+                    <p className="text-placeholder text-center">
+                        {isPurchased ? 'Нет купленных товаров' : isDeferred ? 'Нет отложенных товаров' : 'Объявления отсутствуют'}
+                    </p>
                 ) : (
                     <div className="product-list">
                         {announcements.map((announcement) => (
@@ -247,12 +311,12 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, externalAnnoun
                                 id={announcement.id}
                                 imageUrl={announcement.imageUrls?.[0] || ''}
                                 title={announcement.title}
-                                authorName={isHomePage ? announcement.authorName || 'Без имени' : userData?.name || 'Без имени'}
-                                price={announcement.price ? parseFloat(announcement.price) : 0}
-                                condition={getConditionText(announcement.condition)}
+                                authorName={announcement.authorName}
+                                price={announcement.price}
+                                condition={announcement.condition}
                                 quantitySold={announcement.quantitySold}
                                 isOwnProfile={isOwnProfile}
-                                userId={isHomePage ? announcement.userId : userData?.id} // Передаем userId
+                                userId={announcement.userId}
                                 status={announcement.status}
                             />
                         ))}
