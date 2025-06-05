@@ -1,4 +1,4 @@
-package ru.psuti.blarket.repository;
+package ru.psuti.blarket.repository.cart;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import ru.psuti.blarket.model.cart.CartItem;
@@ -12,4 +12,6 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long> {
     void deleteByUserAndAnnouncementId(User user, Long announcementId);
 
     Optional<CartItem> findByUserAndAnnouncementId(User user, Long announcementId);
+
+    void deleteByUser(User user);
 }

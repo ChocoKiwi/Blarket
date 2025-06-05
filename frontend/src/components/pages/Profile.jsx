@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate, Routes, Route } from 'react-router-dom';
 import api from '../../api';
 import Header from '../comon/Header';
-import EditProfile from '../comon/EditProfile';
-import CategorySelector from '../comon/CategorySelector';
-import CreateAnnouncement from '../comon/CreateAnnouncement';
-import AnnouncementsList from '../comon/AnnouncementsList';
+import EditProfile from '../comon/profile/myprofile/EditProfile';
+import CategorySelector from '../comon/profile/myprofile/CategorySelector';
+import CreateAnnouncement from '../comon/profile/myprofile/CreateAnnouncement';
+import AnnouncementsList from '../comon/profile/myprofile/AnnouncementsList';
 import AnnouncementCard from '../comon/AnnouncementCard';
-import ProfileProductList from '../comon/ProfileProductList';
+import ProfileProductList from '../comon/profile/ProfileProductList';
 import UserAvatar from '../../assets/icons/user-avatar.svg';
 import icons from '../../assets/icons/icons';
 

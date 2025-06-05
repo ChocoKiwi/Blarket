@@ -18,7 +18,7 @@ public class AnnouncementDTO {
     private Long id;
     private String title;
     private String description;
-    private BigDecimal price;
+    private Double price;
     private List<String> imageUrls;
     private String address;
     private Integer quantity;

@@ -11,7 +11,7 @@ public class CartItemDTO {
     private Long announcementId;
     private String announcementTitle;
     private String imageUrl;
-    private BigDecimal price;
+    private Double price;
     private Integer quantity;
     private Integer availableQuantity; // Новое поле
 }

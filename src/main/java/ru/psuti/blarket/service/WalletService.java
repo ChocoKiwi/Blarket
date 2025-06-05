@@ -78,7 +78,7 @@ public class WalletService {
         String transactionId = UUID.randomUUID().toString();
         String paymentRequest = String.format(
                 Locale.US,
-                "{\"amount\":{\"value\":\"%.2f\",\"currency\":\"RUB\"},\"confirmation\":{\"type\":\"redirect\",\"return_url\":\"http://localhost:5173/wallet?transactionId=%s\"},\"capture\":true,\"description\":\"Пополнение кошелька пользователя %d\"}",
+                "{\"amount\":{\"value\":\"%.2f\",\"currency\":\"RUB\"},\"confirmation\":{\"type\":\"redirect\",\"return_url\":\"http://localhost:5173/cart?transactionId=%s\"},\"capture\":true,\"description\":\"Пополнение кошелька пользователя %d\"}",
                 request.getAmount(), transactionId, request.getUserId()
         );
 

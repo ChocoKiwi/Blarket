@@ -8,7 +8,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import ru.psuti.blarket.dto.cart.CartItemDTO;
 import ru.psuti.blarket.model.user.User;
-import ru.psuti.blarket.service.CartService;
+import ru.psuti.blarket.service.cart.CartService;
 
 import java.util.List;
 

@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api';
 import Header from '../comon/Header';
 import AnnouncementCard from '../comon/AnnouncementCard';
-import UserProfile from '../comon/UserProfile';
+import UserProfile from '../comon/profile/UserProfile';
 import '../../App.scss';
 
 function ProductPage({ user, setUser, onLogout }) {

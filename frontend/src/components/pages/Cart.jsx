@@ -1,91 +1,75 @@
 // src/components/pages/Cart.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api';
-import Wallet from '../comon/Wallet'; // Импортируем Wallet
+import Wallet from '../comon/Wallet';
 import '../../App.scss';
 
 const Cart = ({ user, onLogout }) => {
     const [cartItems, setCartItems] = useState([]);
+    const [balance, setBalance] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [balance, setBalance] = useState(0); // Добавляем состояние для баланса
 
     const formatPrice = (price) => price?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') || '0';
 
-    const fetchCart = async () => {
+    const fetchCart = useCallback(async () => {
         setLoading(true);
         try {
             const { data } = await api.get('/cart', { withCredentials: true });
-            console.log('cartItems:', data);
             setCartItems(data);
             setLoading(false);
         } catch (e) {
-            if (e.response?.status === 401) {
-                setError('Неавторизован');
-                onLogout();
-            } else {
-                setError(e.message || 'Ошибка загрузки корзины');
-            }
+            setError(e.response?.status === 401 ? 'Неавторизован' : e.response?.data?.message || 'Ошибка загрузки корзины');
+            if (e.response?.status === 401) onLogout();
             setLoading(false);
         }
-    };
+    }, [onLogout]);
 
-    const fetchBalance = async () => {
-        try {
-            const response = await api.get('/wallet', { withCredentials: true });
-            setBalance(response.data.balance);
-        } catch (e) {
-            if (e.response?.status === 401) {
-                onLogout();
-            } else {
-                setError(e.message || 'Ошибка загрузки баланса');
+    const updateQuantity = useCallback(
+        async (cartItemId, newQuantity) => {
+            if (newQuantity < 1) return;
+            try {
+                const { data } = await api.put(`/cart/${cartItemId}`, { quantity: newQuantity }, { withCredentials: true });
+                setCartItems(cartItems.map((item) => (item.id === cartItemId ? { ...item, quantity: data.quantity } : item)));
+            } catch (e) {
+                alert('Ошибка: ' + (e.response?.data?.message || e.message));
             }
-        }
-    };
+        },
+        [cartItems]
+    );
 
-    const updateQuantity = async (cartItemId, newQuantity) => {
-        try {
-            await api.put(`/cart/${cartItemId}`, { quantity: newQuantity }, { withCredentials: true });
-            setCartItems(
-                cartItems.map((item) =>
-                    item.id === cartItemId ? { ...item, quantity: newQuantity } : item
-                )
-            );
-        } catch (e) {
-            alert('Ошибка: ' + (e.response?.data?.message || e.message));
-        }
-    };
-
-    const removeFromCart = async (cartItemId) => {
-        try {
-            await api.delete(`/cart/${cartItemId}`, { withCredentials: true });
-            setCartItems(cartItems.filter((item) => item.id !== cartItemId));
-        } catch (e) {
-            setError(e.message || 'Ошибка удаления товара');
-        }
-    };
+    const removeFromCart = useCallback(
+        async (cartItemId) => {
+            try {
+                await api.delete(`/cart/${cartItemId}`, { withCredentials: true });
+                setCartItems(cartItems.filter((item) => item.id !== cartItemId));
+            } catch (e) {
+                setError(e.response?.data?.message || 'Ошибка удаления товара');
+            }
+        },
+        [cartItems]
+    );
 
     const handleCheckout = async () => {
+        const totalPrice = cartItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
+        if (totalPrice > balance) {
+            alert('Недостаточно средств. Пополните кошелёк.');
+            return;
+        }
         try {
-            const totalPrice = cartItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
-            if (totalPrice > balance) {
-                alert('Недостаточно средств на балансе. Пополните кошелёк.');
-                return;
-            }
             await api.post('/orders/checkout', { cartItems }, { withCredentials: true });
             alert('Заказ успешно оформлен');
             setCartItems([]); // Очищаем корзину
-            await fetchBalance(); // Обновляем баланс
+            // Баланс обновится через Wallet
         } catch (e) {
-            alert('Ошибка при оформлении заказа: ' + (e.response?.data?.message || e.message));
+            alert('Ошибка при оформлении: ' + (e.response?.data?.message || e.message));
         }
     };
 
     useEffect(() => {
         fetchCart();
-        fetchBalance();
-    }, []);
+    }, [fetchCart]);
 
     if (loading) {
         return <div className="text-center loading">Загрузка...</div>;
@@ -118,16 +102,12 @@ const Cart = ({ user, onLogout }) => {
     return (
         <div className="cart">
             <h2>Корзина</h2>
-            <Wallet user={user} onLogout={onLogout} setBalance={setBalance} /> {/* Интегрируем Wallet */}
+            <Wallet user={user} onLogout={onLogout} setBalance={setBalance} />
             <div className="cart-items">
                 {cartItems.map((item) => (
                     <div key={item.id} className="cart-item">
                         <Link to={`/users/${user.id}/product/${item.announcementId}`}>
-                            <img
-                                src={item.imageUrl || ''}
-                                alt={item.announcementTitle}
-                                className="cart-item-image"
-                            />
+                            <img src={item.imageUrl || ''} alt={item.announcementTitle} className="cart-item-image" />
                         </Link>
                         <div className="cart-item-details">
                             <h3>{item.announcementTitle}</h3>
@@ -149,6 +129,7 @@ const Cart = ({ user, onLogout }) => {
                                     +
                                 </button>
                             </div>
+                            <p>Доступно: {item.availableQuantity} шт.</p>
                             <button className="remove-button" onClick={() => removeFromCart(item.id)}>
                                 Удалить
                             </button>

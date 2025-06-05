@@ -23,7 +23,7 @@ public class Announcement {
     private String title;
     @Column(columnDefinition = "LONGTEXT")
     private String description;
-    private BigDecimal price;
+    private Double price;
 
     @Column(name = "image_urls", columnDefinition = "LONGTEXT")
     private String imageUrls;

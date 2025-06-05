@@ -33,7 +33,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     private static final String ERROR_NOT_AUTHORIZED = "Нет прав для изменения или удаления объявления";
     private static final String ERROR_IMAGE_URLS = "Ошибка преобразования imageUrls";
     private static final String ERROR_CATEGORY_NOT_FOUND = "Категория не найдена";
-    private static final BigDecimal BUSINESS_PRICE_THRESHOLD = new BigDecimal("100000");
+    private static final Double BUSINESS_PRICE_THRESHOLD = new Double("100000");
     private static final int BUSINESS_QUANTITY_THRESHOLD = 35;
 
     private final AnnouncementRepository announcementRepository;

@@ -1,12 +1,12 @@
 // src/components/ui/ProfileProductList.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import api from '../../api';
-import ProductCard from '../ui/ProductCard';
-import SearchAndFilter from '../ui/SearchAndFilter';
-import '../../App.scss';
-import icons from '../../assets/icons/icons';
-import check from '../../assets/icons/sucsses.svg';
+import api from '../../../api';
+import ProductCard from '../../ui/ProductCard';
+import SearchAndFilter from '../../ui/SearchAndFilter';
+import '../../../App.scss';
+import icons from '../../../assets/icons/icons';
+import check from '../../../assets/icons/sucsses.svg';
 
 const ProfileProductList = ({ user, onLogout, isHomePage = false, externalAnnouncements }) => {
     const { id } = useParams();

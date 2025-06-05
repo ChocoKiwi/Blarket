@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import api from '../../api';
-import icons from '../../assets/icons/icons';
+import api from '../../../../api';
+import icons from '../../../../assets/icons/icons';
 import imageCompression from 'browser-image-compression';
-import successIcon from '../../assets/icons/sucsses.svg';
-import info from '../../assets/icons/solar_info-circle-bold.svg';
+import successIcon from '../../../../assets/icons/sucsses.svg';
+import info from '../../../../assets/icons/solar_info-circle-bold.svg';
 
 const CreateAnnouncement = ({ user, setUser, onLogout, isEditMode = false }) => {
     const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm({

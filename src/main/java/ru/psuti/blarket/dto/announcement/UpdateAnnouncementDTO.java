@@ -14,7 +14,7 @@ import java.util.List;
 public class UpdateAnnouncementDTO {
     private String title;
     private String description;
-    private BigDecimal price;
+    private Double price;
     private Long categoryId;
     private List<String> imageUrls;
     private String address;

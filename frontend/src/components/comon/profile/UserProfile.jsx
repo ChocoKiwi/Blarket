@@ -1,11 +1,11 @@
 // src/components/comon/UserProfile.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import api from '../../api';
-import '../../App.scss';
-import UserAvatar from '../../assets/icons/user-avatar.svg';
-import Phone from '../../assets/icons/phone.svg';
-import Email from '../../assets/icons/message.svg';
+import api from '../../../api';
+import '../../../App.scss';
+import UserAvatar from '../../../assets/icons/user-avatar.svg';
+import Phone from '../../../assets/icons/phone.svg';
+import Email from '../../../assets/icons/message.svg';
 
 const getRoleDisplayName = (roles) => {
     if (!roles || !Array.isArray(roles) || roles.length === 0) {

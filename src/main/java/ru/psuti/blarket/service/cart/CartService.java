@@ -1,4 +1,4 @@
-package ru.psuti.blarket.service;
+package ru.psuti.blarket.service.cart;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -6,7 +6,7 @@ import ru.psuti.blarket.dto.cart.CartItemDTO;
 import ru.psuti.blarket.model.announcement.Announcement;
 import ru.psuti.blarket.model.cart.CartItem;
 import ru.psuti.blarket.model.user.User;
-import ru.psuti.blarket.repository.CartItemRepository;
+import ru.psuti.blarket.repository.cart.CartItemRepository;
 import ru.psuti.blarket.repository.UserRepository;
 import ru.psuti.blarket.repository.announcement.AnnouncementRepository;
 
@@ -44,6 +44,12 @@ public class CartService {
         dto.setQuantity(item.getQuantity());
         dto.setAvailableQuantity(item.getAnnouncement().getQuantity()); // Устанавливаем доступное количество
         return dto;
+    }
+
+    public void clearCart(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+        cartItemRepository.deleteByUser(user);
     }
 
     public CartItemDTO updateCartItemQuantity(Long cartItemId, Long userId, Integer newQuantity) {

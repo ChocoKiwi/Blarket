@@ -1,9 +1,9 @@
 // CategorySelector.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import api from '../../api';
-import icons from '../../assets/icons/icons';
-import '../../App.scss';
+import api from '../../../../api';
+import icons from '../../../../assets/icons/icons';
+import '../../../../App.scss';
 
 const CategorySelector = ({ isEditMode = false, announcementId = null }) => {
     const [mainCategories, setMainCategories] = useState([]);

@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api';
 import Header from '../comon/Header';
-import ProfileProductList from '../comon/ProfileProductList';
-import UserProfile from '../comon/UserProfile';
+import ProfileProductList from '../comon/profile/ProfileProductList';
+import UserProfile from '../comon/profile/UserProfile';
 import '../../App.scss';
 
 function SellerProfile({ user, onLogout }) {

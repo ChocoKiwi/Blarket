@@ -1,7 +1,7 @@
 // src/components/pages/Home.jsx
 import React, { useState } from 'react';
 import Header from '../comon/Header';
-import ProfileProductList from '../comon/ProfileProductList';
+import ProfileProductList from '../comon/profile/ProfileProductList';
 import SearchAndFilter from '../ui/SearchAndFilter';
 import '../../App.scss';
 

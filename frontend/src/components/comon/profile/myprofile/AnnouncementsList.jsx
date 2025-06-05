@@ -1,9 +1,9 @@
 // AnnouncementsList.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../../api';
-import icons from '../../assets/icons/icons';
-import successIcon from "../../assets/icons/sucsses.svg";
+import api from '../../../../api';
+import icons from '../../../../assets/icons/icons';
+import successIcon from "../../../../assets/icons/sucsses.svg";
 
 const AnnouncementsList = () => {
     const [data, setData] = useState([]);
