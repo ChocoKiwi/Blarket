@@ -20,6 +20,8 @@ import ru.psuti.blarket.model.Wallet;
 import ru.psuti.blarket.model.user.User;
 import ru.psuti.blarket.repository.TransactionRepository;
 import ru.psuti.blarket.repository.WalletRepository;
+import ru.psuti.blarket.repository.cart.OrderRepository; // Добавляем OrderRepository
+import ru.psuti.blarket.model.cart.Order;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,6 +35,7 @@ public class WalletService {
 
     private final WalletRepository walletRepository;
     private final TransactionRepository transactionRepository;
+    private final OrderRepository orderRepository; // Внедряем OrderRepository
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Logger logger = LoggerFactory.getLogger(WalletService.class);
@@ -203,7 +206,9 @@ public class WalletService {
             logger.warn("No wallet found for userId: {}", userId);
             return List.of();
         }
-        return transactionRepository.findByWalletId(wallet.getId()).stream()
+
+        // Получаем транзакции пополнения
+        List<TransactionDTO> transactionDtos = transactionRepository.findByWalletId(wallet.getId()).stream()
                 .map(t -> {
                     TransactionDTO dto = new TransactionDTO();
                     dto.setId(t.getId());
@@ -214,5 +219,27 @@ public class WalletService {
                     return dto;
                 })
                 .collect(Collectors.toList());
+
+        // Получаем покупки из заказов
+        List<TransactionDTO> orderDtos = orderRepository.findPurchasedByUserId(userId).stream()
+                .map(o -> {
+                    TransactionDTO dto = new TransactionDTO();
+                    dto.setId(o.getId()); // Используем ID заказа
+                    dto.setWalletId(wallet.getId());
+                    dto.setAmount(o.getTotalPrice());
+                    dto.setStatus(o.getStatus().name()); // Статус заказа (COMPLETED)
+                    dto.setCreatedAt(o.getCreatedAt());
+                    // Добавляем название товара
+                    dto.setAnnouncementTitle(o.getAnnouncement().getTitle()); // Добавляем поле в TransactionDTO
+                    return dto;
+                })
+                .collect(Collectors.toList());
+
+        // Объединяем списки
+        transactionDtos.addAll(orderDtos);
+        // Сортируем по дате создания (от новых к старым)
+        transactionDtos.sort((t1, t2) -> t2.getCreatedAt().compareTo(t1.getCreatedAt()));
+
+        return transactionDtos;
     }
 }

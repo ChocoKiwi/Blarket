@@ -61,6 +61,13 @@ const Wallet = ({ user, onLogout, setBalance, cartItems }) => {
         }
     };
 
+    const formatPrice = (amount) => {
+        return new Intl.NumberFormat('ru-RU', {
+            style: 'decimal',
+            minimumFractionDigits: 0
+        }).format(amount);
+    };
+
     const checkPaymentStatus = async (transactionId) => {
         try {
             const { data } = await api.get(`/wallet/check-payment/${transactionId}`, { withCredentials: true });
@@ -95,8 +102,8 @@ const Wallet = ({ user, onLogout, setBalance, cartItems }) => {
     return (
         <div className="wallet">
             <h3>Кошелёк</h3>
-            <p>Текущий баланс: {balance} руб.</p>
-            <p>Итоговая стоимость корзины: {totalCost} руб.</p>
+            <p>Текущий баланс: {formatPrice(balance)} руб.</p>
+            <p>Итоговая стоимость корзины: {formatPrice(totalCost)} руб.</p>
             <div className="wallet-top-up">
                 <input
                     type="number"

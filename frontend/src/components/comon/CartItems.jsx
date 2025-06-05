@@ -3,20 +3,18 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../../api';
 import '../../App.scss';
 
-const CartItems = ({ user, onLogout, setBalance, itemStatus, setCartItems }) => {
+const CartItems = ({ user, onLogout, setBalance, itemStatus, setCartItems, formatPrice, formatDate }) => {
     const [cartItems, setLocalCartItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
-
-    const formatPrice = (price) => price?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') || '0';
 
     const fetchCart = useCallback(async () => {
         setLoading(true);
         try {
             const { data } = await api.get(`/cart?status=${itemStatus}`, { withCredentials: true });
             setLocalCartItems(data);
-            setCartItems(data); // Update parent state
+            setCartItems(data);
             setLoading(false);
         } catch (e) {
             setError(e.response?.status === 401 ? 'Неавторизован' : e.response?.data?.message || 'Ошибка загрузки корзины');
@@ -35,7 +33,7 @@ const CartItems = ({ user, onLogout, setBalance, itemStatus, setCartItems }) => 
                 const { data } = await api.put(`/cart/${cartItemId}`, { quantity: newQuantity }, { withCredentials: true });
                 const updatedItems = cartItems.map((item) => (item.id === cartItemId ? { ...item, quantity: data.quantity } : item));
                 setLocalCartItems(updatedItems);
-                setCartItems(updatedItems); // Update parent state
+                setCartItems(updatedItems);
             } catch (e) {
                 setError(e.response?.data?.message || 'Ошибка обновления количества');
             }
@@ -49,9 +47,24 @@ const CartItems = ({ user, onLogout, setBalance, itemStatus, setCartItems }) => 
                 await api.delete(`/cart/${cartItemId}`, { withCredentials: true });
                 const updatedItems = cartItems.filter((item) => item.id !== cartItemId);
                 setLocalCartItems(updatedItems);
-                setCartItems(updatedItems); // Update parent state
+                setCartItems(updatedItems);
             } catch (e) {
                 setError(e.response?.data?.message || 'Ошибка удаления товара');
+            }
+        },
+        [cartItems, setCartItems]
+    );
+
+    const deferItem = useCallback(
+        async (cartItemId) => {
+            try {
+                const { data } = await api.put(`/cart/defer/${cartItemId}?defer=true`, null, { withCredentials: true });
+                const updatedItems = cartItems.filter((item) => item.id !== cartItemId); // Удаляем из текущей корзины
+                setLocalCartItems(updatedItems);
+                setCartItems(updatedItems);
+                setError('Товар отложен');
+            } catch (e) {
+                setError(e.response?.data?.message || 'Ошибка при отложении товара');
             }
         },
         [cartItems, setCartItems]
@@ -97,8 +110,8 @@ const CartItems = ({ user, onLogout, setBalance, itemStatus, setCartItems }) => 
                             <img src={item.imageUrl || ''} alt={item.announcementTitle} className="cart-item-image" />
                         </Link>
                         <div className="cart-item-details">
-                            <h3>{item.announcementTitle}</h3>
-                            <p>Цена: {formatPrice(item.price)} ₽</p>
+                            <h3 style={{ whiteSpace: 'pre-line' }}>{`Покупка товара\n(${item.announcementTitle})`}</h3>
+                            <p>Цена: {formatPrice(item.price)} руб.</p>
                             <div className="quantity-control">
                                 <button
                                     className="counter-btn"
@@ -116,9 +129,11 @@ const CartItems = ({ user, onLogout, setBalance, itemStatus, setCartItems }) => 
                                     +
                                 </button>
                             </div>
-                            <p>Доступно: {item.availableQuantity} шт.</p>
                             <button className="remove-button" onClick={() => removeFromCart(item.id)}>
                                 Удалить
+                            </button>
+                            <button className="defer-button" onClick={() => deferItem(item.id)}>
+                                Отложить
                             </button>
                         </div>
                     </div>

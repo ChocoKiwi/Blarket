@@ -10,4 +10,5 @@ public class TransactionDTO {
     private double amount;
     private String status;
     private LocalDateTime createdAt;
+    private String announcementTitle;
 }

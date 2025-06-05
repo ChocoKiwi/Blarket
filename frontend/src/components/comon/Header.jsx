@@ -39,13 +39,20 @@ function Header({ user, setUser }) {
                 {[
                     { path: '/', name: 'Главная', icon: 'home' },
                     { path: '/cart', name: 'Корзина', icon: 'cart' },
-                    { path: '/messages', name: 'Сообщения', icon: 'messages' },
                     { path: '/notifications', name: 'Уведомления', icon: 'notifications' },
                 ].map(({ path, name, icon }) => (
                     <Link
                         key={path}
                         to={path}
-                        className={`nav-link ${location.pathname === path ? 'active active-icon' : ''}`}
+                        className={`nav-link ${
+                            path === '/'
+                                ? location.pathname === '/' || location.pathname.startsWith('/users')
+                                    ? 'active active-icon'
+                                    : ''
+                                : location.pathname === path
+                                    ? 'active active-icon'
+                                    : ''
+                        }`}
                     >
                         {icons[icon]({ className: `menu-icon icon-${icon}` })}
                         {name}

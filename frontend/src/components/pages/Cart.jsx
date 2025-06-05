@@ -10,7 +10,7 @@ const Cart = ({ user, onLogout }) => {
     const [balance, setBalance] = useState(0);
     const [userState, setUserState] = useState(user);
     const [activeTab, setActiveTab] = useState('cart');
-    const [cartItems, setCartItems] = useState([]); // Track cart items
+    const [cartItems, setCartItems] = useState([]);
 
     const tabs = [
         { id: 'cart', label: 'Корзина' },
@@ -19,14 +19,55 @@ const Cart = ({ user, onLogout }) => {
         { id: 'stats', label: 'Статистика' },
     ];
 
+    const formatPrice = (price) => {
+        return new Intl.NumberFormat('ru-RU', {
+            style: 'decimal',
+            minimumFractionDigits: 0
+        }).format(price);
+    };
+
+    const formatDate = (date) => {
+        const d = new Date(date);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}.${month}.${year}`;
+    };
+
     const renderContent = () => {
         switch (activeTab) {
             case 'cart':
-                return <CartItems user={userState} onLogout={onLogout} setBalance={setBalance} itemStatus="CART" setCartItems={setCartItems} />;
+                return (
+                    <CartItems
+                        user={userState}
+                        onLogout={onLogout}
+                        setBalance={setBalance}
+                        itemStatus="CART"
+                        setCartItems={setCartItems}
+                        formatPrice={formatPrice}
+                        formatDate={formatDate}
+                    />
+                );
             case 'purchases':
-                return <ProfileProductList user={userState} onLogout={onLogout} isPurchased={true} />;
+                return (
+                    <ProfileProductList
+                        user={userState}
+                        onLogout={onLogout}
+                        isPurchased={true}
+                        formatPrice={formatPrice}
+                        formatDate={formatDate}
+                    />
+                );
             case 'deferred':
-                return <ProfileProductList user={userState} onLogout={onLogout} isDeferred={true} />;
+                return (
+                    <ProfileProductList
+                        user={userState}
+                        onLogout={onLogout}
+                        isDeferred={true}
+                        formatPrice={formatPrice}
+                        formatDate={formatDate}
+                    />
+                );
             case 'stats':
                 return <BuySellStatic user={userState} onLogout={onLogout} setUser={setUserState} />;
             default:
@@ -51,7 +92,7 @@ const Cart = ({ user, onLogout }) => {
                 </div>
                 {renderContent()}
             </div>
-            <Wallet user={userState} onLogout={onLogout} setBalance={setBalance} cartItems={cartItems} />
+            <Wallet user={userState} onLogout={onLogout} setBalance={setBalance} cartItems={cartItems} formatPrice={formatPrice} />
         </div>
     );
 };

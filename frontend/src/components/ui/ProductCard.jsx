@@ -1,23 +1,32 @@
-// src/components/ui/ProductCard.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import api from '../../api';
 import '../../App.scss';
 import Star1 from '../../assets/icons/star1.svg';
 import User from '../../assets/icons/solar_user-bold.svg';
+import successIcon from '../../assets/icons/sucsses.svg';
 
 const formatPrice = (price) => {
     return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 };
 
 const ProductCard = ({ id, imageUrl, title, authorName, price, condition, status, quantitySold, isOwnProfile, userId }) => {
+    const [notificationMessage, setNotificationMessage] = useState('');
+    const [notificationState, setNotificationState] = useState('hidden');
+
     const addToCart = async () => {
         try {
             await api.post('/cart/add', { announcementId: id, quantity: 1 }, { withCredentials: true });
-            alert('Товар добавлен в корзину');
+            setNotificationMessage('Товар добавлен в корзину!');
+            setNotificationState('visible');
+            setTimeout(() => setNotificationState('hiding'), 3000);
+            setTimeout(() => setNotificationState('hidden'), 3500);
         } catch (e) {
-            alert('Ошибка: ' + (e.response?.data?.message || e.message));
+            setNotificationMessage('Ошибка: ' + (e.response?.data?.message || e.message));
+            setNotificationState('visible');
+            setTimeout(() => setNotificationState('hiding'), 3000);
+            setTimeout(() => setNotificationState('hidden'), 3500);
         }
     };
 
@@ -34,7 +43,7 @@ const ProductCard = ({ id, imageUrl, title, authorName, price, condition, status
     const buttonClass = `product-button ${isOwnProfile || isSold ? 'details-button' : 'cart-button'} ${isSold ? 'sold-button' : ''}`;
 
     return (
-        <div className={`product-card ${status}`}>
+        <div className={`product-card ${status}`} style={{ position: 'relative' }}>
             {isSold ? (
                 <div className="product-image-link disabled">
                     <img src={imageUrl} alt={title} className="product-image" />
@@ -82,6 +91,12 @@ const ProductCard = ({ id, imageUrl, title, authorName, price, condition, status
                     {isSold ? `Продано: ${quantitySold} шт.` : (isOwnProfile ? 'Подробнее' : 'В корзину')}
                 </button>
             </div>
+            {notificationState !== 'hidden' && (
+                <div className={`notification ${notificationState}`}>
+                    <img src={successIcon} alt="notification" />
+                    <span>{notificationMessage}</span>
+                </div>
+            )}
         </div>
     );
 };
@@ -93,7 +108,7 @@ ProductCard.propTypes = {
     authorName: PropTypes.string,
     price: PropTypes.number.isRequired,
     condition: PropTypes.string,
-    status: PropTypes.oneOf(['ACTIVE', 'BUSINESS', 'SOLD', 'DRAFT', 'ARCHIVED']), // Добавляем status
+    status: PropTypes.oneOf(['ACTIVE', 'BUSINESS', 'SOLD', 'DRAFT', 'ARCHIVED']),
     isOwnProfile: PropTypes.bool,
     userId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
 };

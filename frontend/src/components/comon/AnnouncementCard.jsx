@@ -1,10 +1,10 @@
-// src/components/comon/AnnouncementCard.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../api';
 import icons from '../../assets/icons/icons';
 import '../../App.scss';
-import Star from '../../assets/icons/star1.svg'
+import Star from '../../assets/icons/star1.svg';
+import successIcon from '../../assets/icons/sucsses.svg';
 
 const AnnouncementCard = () => {
     const { id } = useParams(); // ID продукта
@@ -15,6 +15,8 @@ const AnnouncementCard = () => {
     const [selectedImage, setSelectedImage] = useState(null);
     const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
     const [quantity, setQuantity] = useState(1);
+    const [notificationMessage, setNotificationMessage] = useState('');
+    const [notificationState, setNotificationState] = useState('hidden');
 
     // Форматирование цены
     const formatPrice = (price) => price?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') || '0';
@@ -103,6 +105,28 @@ const AnnouncementCard = () => {
         }
     };
 
+    const addToCart = async () => {
+        if (quantity > announcement.quantity) {
+            setNotificationMessage(`Нельзя добавить больше ${announcement.quantity} шт.`);
+            setNotificationState('visible');
+            setTimeout(() => setNotificationState('hiding'), 3000);
+            setTimeout(() => setNotificationState('hidden'), 3500);
+            return;
+        }
+        try {
+            await api.post('/cart/add', { announcementId: id, quantity }, { withCredentials: true });
+            setNotificationMessage('Товар добавлен в корзину!');
+            setNotificationState('visible');
+            setTimeout(() => setNotificationState('hiding'), 3000);
+            setTimeout(() => setNotificationState('hidden'), 3500);
+        } catch (e) {
+            setNotificationMessage('Ошибка: ' + (e.response?.data?.message || e.message));
+            setNotificationState('visible');
+            setTimeout(() => setNotificationState('hiding'), 3000);
+            setTimeout(() => setNotificationState('hidden'), 3500);
+        }
+    };
+
     if (loading) {
         return <div className="text-center loading">Загрузка...</div>;
     }
@@ -124,21 +148,8 @@ const AnnouncementCard = () => {
         return <p className="text-placeholder">Объявление не найдено</p>;
     }
 
-    const addToCart = async () => {
-        if (quantity > announcement.quantity) {
-            alert(`Нельзя добавить больше ${announcement.quantity} шт.`);
-            return;
-        }
-        try {
-            await api.post('/cart/add', { announcementId: id, quantity }, { withCredentials: true });
-            alert('Товар добавлен в корзину');
-        } catch (e) {
-            alert('Ошибка: ' + (e.response?.data?.message || e.message));
-        }
-    };
-
     return (
-        <div className="announcement-card">
+        <div className="announcement-card" style={{ position: 'relative' }}>
             <div className="phone-date-container">
                 {selectedImage && (
                     <div className="image-upload">
@@ -220,11 +231,17 @@ const AnnouncementCard = () => {
                 <div className="additional-info">
                     <p className="address"> <b>Адрес</b>{announcement.address || 'Адрес не указан'}</p>
                     <p className="quantity">
-                        <b>Колличество:</b>{announcement.quantity === 1 ? '1 шт.' : `${announcement.quantity} шт.`}
+                        <b>Количество:</b>{announcement.quantity === 1 ? '1 шт.' : `${announcement.quantity} шт.`}
                     </p>
                     <p className="product-id"><b>ID товара:</b>{announcement.id}</p>
                 </div>
             </div>
+            {notificationState !== 'hidden' && (
+                <div className={`notification ${notificationState}`}>
+                    <img src={successIcon} alt="notification" />
+                    <span>{notificationMessage}</span>
+                </div>
+            )}
         </div>
     );
 };

@@ -27,24 +27,42 @@ const BuySellStatic = ({ user, onLogout, setUser }) => {
     }, []);
 
     const getOperationName = (transaction) => {
-        if (transaction.type === 'PURCHASE' && transaction.announcementTitle) {
-            return `Покупка товара (${transaction.announcementTitle})`;
+        if (transaction.announcementTitle) {
+            return `Покупка товара\n(${transaction.announcementTitle})`;
         }
+        return 'Пополнение счёта';
+    };
+
+    const formatDate = (date) => {
+        const d = new Date(date);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}.${month}.${year}`;
+    };
+
+    const formatPrice = (amount) => {
+        return new Intl.NumberFormat('ru-RU', {
+            style: 'decimal',
+            minimumFractionDigits: 0
+        }).format(amount);
+    };
+
+    const getStatus = (transaction) => {
         switch (transaction.status) {
             case 'COMPLETED':
-                return 'Пополнение счёта';
+                return 'Завершено';
             case 'PENDING':
-                return 'Ожидание пополнения';
+                return 'Ожидание';
             case 'FAILED':
-                return 'Неудавшееся пополнение';
+                return 'Неудачно';
             default:
-                return 'Неизвестная операция';
+                return 'Неизвестно';
         }
     };
 
     return (
         <div className="main-container">
-            <Header user={user} setUser={setUser} />
             <div className="stats-content">
                 <h3>Статистика операций</h3>
                 {message && <p className="stats-message">{message}</p>}
@@ -63,10 +81,10 @@ const BuySellStatic = ({ user, onLogout, setUser }) => {
                         transactions.map((tx) => (
                             <tr key={tx.id}>
                                 <td>{tx.id}</td>
-                                <td>{getOperationName(tx)}</td>
-                                <td>{tx.status}</td>
-                                <td>{new Date(tx.createdAt).toLocaleString()}</td>
-                                <td>{tx.amount} руб.</td>
+                                <td style={{ whiteSpace: 'pre-line' }}>{getOperationName(tx)}</td>
+                                <td>{getStatus(tx)}</td>
+                                <td>{formatDate(tx.createdAt)}</td>
+                                <td>{formatPrice(tx.amount)} руб.</td>
                             </tr>
                         ))
                     ) : (
