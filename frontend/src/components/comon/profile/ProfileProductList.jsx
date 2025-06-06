@@ -82,7 +82,6 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                     const normalizedData = data.map((item) => {
                         let imageUrls = [];
                         if (isPurchased || isDeferred) {
-                            // Обрабатываем как строку base64 или массив
                             if (typeof item.imageUrl === 'string') {
                                 try {
                                     const parsed = JSON.parse(item.imageUrl);
@@ -128,7 +127,14 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                         }, new Map()).values()
                     );
 
-                    setAnnouncements(uniqueAnnouncements);
+                    // Sort announcements so SOLD items appear at the end
+                    const sortedAnnouncements = uniqueAnnouncements.sort((a, b) => {
+                        if (a.status === 'SOLD' && b.status !== 'SOLD') return 1;
+                        if (a.status !== 'SOLD' && b.status === 'SOLD') return -1;
+                        return 0;
+                    });
+
+                    setAnnouncements(sortedAnnouncements);
                     setLoading(false);
                 } catch (err) {
                     console.error('Ошибка загрузки данных:', err);
@@ -145,7 +151,13 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
             };
             fetchAnnouncements();
         } else {
-            setAnnouncements(externalAnnouncements || []);
+            // Sort external announcements so SOLD items appear at the end
+            const sortedExternal = externalAnnouncements.sort((a, b) => {
+                if (a.status === 'SOLD' && b.status !== 'SOLD') return 1;
+                if (a.status !== 'SOLD' && b.status === 'SOLD') return -1;
+                return 0;
+            });
+            setAnnouncements(sortedExternal || []);
             setLoading(false);
         }
     }, [userId, selectedStatus, selectedSortValue, onLogout, isHomePage, isPurchased, isDeferred, userData, user, externalAnnouncements]);
@@ -199,7 +211,14 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
             }, new Map()).values()
         );
 
-        setAnnouncements(uniqueResults);
+        // Sort search results so SOLD items appear at the end
+        const sortedResults = uniqueResults.sort((a, b) => {
+            if (a.status === 'SOLD' && b.status !== 'SOLD') return 1;
+            if (a.status !== 'SOLD' && b.status === 'SOLD') return -1;
+            return 0;
+        });
+
+        setAnnouncements(sortedResults);
     };
 
     const restoreItem = async (cartItemId, title) => {

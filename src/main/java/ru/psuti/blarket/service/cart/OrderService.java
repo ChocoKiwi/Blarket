@@ -35,7 +35,7 @@ public class OrderService {
         if (cartItems == null || cartItems.isEmpty()) {
             throw new IllegalArgumentException("Корзина пуста");
         }
-        if (finalCost == null || finalCost <= 0) {
+        if (finalCost == null || finalCost < 0) {
             throw new IllegalArgumentException("Итоговая стоимость заказа некорректна");
         }
         for (CartItemDTO item : cartItems) {
