@@ -28,7 +28,7 @@ const BuySellStatic = ({ user, onLogout, setUser }) => {
 
     const getOperationName = (transaction) => {
         if (transaction.announcementTitle) {
-            return `Покупка товара\n(${transaction.announcementTitle})`;
+            return `${transaction.announcementTitle}`;
         }
         return 'Пополнение счёта';
     };
@@ -67,8 +67,8 @@ const BuySellStatic = ({ user, onLogout, setUser }) => {
                 <table className="transaction-table">
                     <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Операция</th>
+                        <th className={"id"}>ID</th>
+                        <th className={'title'}>Операция / Название товара</th>
                         <th>Статус</th>
                         <th>Дата</th>
                         <th>Сумма</th>

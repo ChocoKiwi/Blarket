@@ -1,5 +1,6 @@
 package ru.psuti.blarket.controller;
 
+import jakarta.validation.Valid;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -7,7 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import ru.psuti.blarket.dto.cart.CartItemDTO;
-import ru.psuti.blarket.model.cart.Order;
 import ru.psuti.blarket.model.user.User;
 import ru.psuti.blarket.service.cart.CartService;
 
@@ -21,48 +21,89 @@ public class CartController {
     private final CartService cartService;
 
     @GetMapping
-    public ResponseEntity<List<CartItemDTO>> getCart(
+    public ResponseEntity<?> getCart(
             @AuthenticationPrincipal User user,
-            @RequestParam(required = false) String itemStatus) {
-        return ResponseEntity.ok(cartService.getCartItems(user.getId(), itemStatus != null ? Order.ItemStatus.valueOf(itemStatus) : null));
+            @RequestParam(required = false) Boolean deferred) {
+        try {
+            List<CartItemDTO> items = cartService.getCartItems(user.getId(), deferred);
+            return ResponseEntity.ok(items);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(new ResponseMessage("error", e.getMessage()));
+        }
     }
 
     @PostMapping("/add")
-    public ResponseEntity<CartItemDTO> addToCart(
+    public ResponseEntity<?> addToCart(
             @AuthenticationPrincipal User user,
-            @RequestBody CartRequest request) {
-        return ResponseEntity.ok(cartService.addToCart(user.getId(), request.getAnnouncementId(), request.getQuantity(), request.getItemStatus()));
+            @Valid @RequestBody CartRequest request) {
+        try {
+            CartItemDTO item = cartService.addToCart(user.getId(), request.getAnnouncementId(), request.getQuantity(), request.isDeferred());
+            return ResponseEntity.ok(item);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(new ResponseMessage("error", e.getMessage()));
+        }
     }
 
     @DeleteMapping("/{cartItemId}")
-    public ResponseEntity<Void> removeFromCart(
+    public ResponseEntity<?> removeFromCart(
             @AuthenticationPrincipal User user,
             @PathVariable Long cartItemId) {
-        cartService.removeFromCart(cartItemId, user.getId());
-        return ResponseEntity.ok().build();
+        try {
+            cartService.removeFromCart(cartItemId, user.getId());
+            return ResponseEntity.ok().body(new ResponseMessage("success", "Товар удалён из корзины"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(new ResponseMessage("error", e.getMessage()));
+        }
     }
 
     @PutMapping("/{cartItemId}")
-    public ResponseEntity<CartItemDTO> updateCartItemQuantity(
+    public ResponseEntity<?> updateCartItemQuantity(
             @AuthenticationPrincipal User user,
             @PathVariable Long cartItemId,
-            @RequestBody CartRequest request) {
-        return ResponseEntity.ok(cartService.updateCartItemQuantity(cartItemId, user.getId(), request.getQuantity()));
+            @Valid @RequestBody CartRequest request) {
+        try {
+            CartItemDTO item = cartService.updateCartItemQuantity(cartItemId, user.getId(), request.getQuantity());
+            return ResponseEntity.ok(item);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(new ResponseMessage("error", e.getMessage()));
+        }
     }
 
     @PutMapping("/defer/{cartItemId}")
-    public ResponseEntity<CartItemDTO> deferCartItem(
+    public ResponseEntity<?> deferCartItem(
             @AuthenticationPrincipal User user,
             @PathVariable Long cartItemId,
             @RequestParam boolean defer) {
-        return ResponseEntity.ok(cartService.deferCartItem(cartItemId, user.getId(), defer));
+        try {
+            CartItemDTO item = cartService.deferCartItem(cartItemId, user.getId(), defer);
+            return ResponseEntity.ok(item);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(new ResponseMessage("error", e.getMessage()));
+        }
     }
 
     @Setter
     @Getter
     static class CartRequest {
+        @jakarta.validation.constraints.NotNull(message = "ID объявления не может быть пустым")
         private Long announcementId;
+
+        @jakarta.validation.constraints.NotNull(message = "Количество не может быть пустым")
+        @jakarta.validation.constraints.Positive(message = "Количество должно быть больше 0")
         private Integer quantity;
-        private Order.ItemStatus itemStatus = Order.ItemStatus.CART; // Новое поле, по умолчанию CART
+
+        private boolean deferred = false; // По умолчанию корзина
+    }
+
+    @Getter
+    @Setter
+    static class ResponseMessage {
+        private String status;
+        private String message;
+
+        public ResponseMessage(String status, String message) {
+            this.status = status;
+            this.message = message;
+        }
     }
 }

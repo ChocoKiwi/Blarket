@@ -9,7 +9,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "announcements")
+@Table(name = "announcements",
+        indexes = {@Index(name = "uk_user_title", columnList = "user_id, title", unique = true)})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

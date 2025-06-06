@@ -1,11 +1,10 @@
-// Cart.jsx
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import Header from '../comon/Header';
 import CartItems from '../comon/cart/CartItems';
 import Wallet from '../comon/cart/Wallet';
 import ProfileProductList from '../comon/profile/ProfileProductList';
 import BuySellStatic from '../comon/cart/BuySellStatic';
-import axios from 'axios';
+import api from '../../api';
 import '../../App.scss';
 
 const Cart = ({ user, onLogout }) => {
@@ -32,56 +31,55 @@ const Cart = ({ user, onLogout }) => {
         setTimeout(() => setNotificationState('hidden'), 2500);
     }, []);
 
+    const fetchCart = useCallback(async () => {
+        try {
+            const { data } = await api.get('/cart?deferred=false', { withCredentials: true });
+            setCartItems(Array.isArray(data) ? data : []);
+            setError(null);
+        } catch (err) {
+            console.error('Ошибка загрузки корзины:', err);
+            setCartItems([]);
+            setError(err.response?.data?.message || 'Не удалось загрузить корзину');
+            showNotification('Корзина не загружена', 'ошибка', 'error');
+        }
+    }, [showNotification]);
+
+    const fetchDeferred = useCallback(async () => {
+        try {
+            const { data } = await api.get('/cart?deferred=true', { withCredentials: true });
+            setDeferredItems(Array.isArray(data) ? data : []);
+            setError(null);
+        } catch (err) {
+            console.error('Ошибка загрузки отложенных:', err);
+            setDeferredItems([]);
+            setError(err.response?.data?.message || 'Не удалось загрузить отложенные');
+            showNotification('Отложенные не загружены', 'ошибка', 'error');
+        }
+    }, [showNotification]);
+
     useEffect(() => {
-        const fetchCart = async () => {
-            try {
-                const response = await axios.get('/api/cart?itemStatus=CART', { withCredentials: true });
-                setCartItems(Array.isArray(response.data) ? response.data : []);
-                setError(null);
-            } catch (err) {
-                console.error('Ошибка загрузки корзины:', err);
-                setCartItems([]);
-                setError('Не удалось загрузить корзину');
-                showNotification('Корзина не загружена', 'ошибка', 'error');
-            }
-        };
-        const fetchDeferred = async () => {
-            try {
-                const response = await axios.get('/api/cart?itemStatus=DEFERRED', { withCredentials: true });
-                setDeferredItems(Array.isArray(response.data) ? response.data : []);
-                setError(null);
-            } catch (err) {
-                console.error('Ошибка загрузки отложенных:', err);
-                setDeferredItems([]);
-                setError('Не удалось загрузить отложенные');
-                showNotification('Отложенные не загружены', 'ошибка', 'error');
-            }
-        };
         fetchCart();
         fetchDeferred();
-    }, [showNotification]); // Зависимость только от showNotification
+    }, [fetchCart, fetchDeferred]);
 
-    const formatPrice = (price) => {
-        return new Intl.NumberFormat('ru-RU', {
-            style: 'decimal',
-            minimumFractionDigits: 0
-        }).format(price);
-    };
+    const formatPrice = useCallback((price) => {
+        return new Intl.NumberFormat('ru-RU', { style: 'decimal', minimumFractionDigits: 0 }).format(price);
+    }, []);
 
-    const formatDate = (date) => {
+    const formatDate = useCallback((date) => {
         const d = new Date(date);
         const day = String(d.getDate()).padStart(2, '0');
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const year = d.getFullYear();
         return `${day}.${month}.${year}`;
-    };
+    }, []);
 
-    const renderContent = () => {
+    const renderContent = useMemo(() => {
         if (error) {
             return (
                 <div className="error-block">
                     <p className="error-text">{error}</p>
-                    <button className="button" onClick={() => window.location.reload()}>
+                    <button className="button" onClick={() => { fetchCart(); fetchDeferred(); }}>
                         Повторить
                     </button>
                 </div>
@@ -95,7 +93,7 @@ const Cart = ({ user, onLogout }) => {
                         user={userState}
                         onLogout={onLogout}
                         setBalance={setBalance}
-                        itemStatus="CART"
+                        deferred={false}
                         cartItems={cartItems}
                         setCartItems={setCartItems}
                         setDeferredItems={setDeferredItems}
@@ -120,7 +118,7 @@ const Cart = ({ user, onLogout }) => {
                         user={userState}
                         onLogout={onLogout}
                         setBalance={setBalance}
-                        itemStatus="DEFERRED"
+                        deferred={true}
                         cartItems={deferredItems}
                         setCartItems={setCartItems}
                         setDeferredItems={setDeferredItems}
@@ -134,7 +132,7 @@ const Cart = ({ user, onLogout }) => {
             default:
                 return null;
         }
-    };
+    }, [error, activeTab, userState, onLogout, cartItems, deferredItems, setBalance, setCartItems, setDeferredItems, formatPrice, formatDate, showNotification, fetchCart, fetchDeferred]);
 
     return (
         <div className="main-container">
@@ -157,7 +155,7 @@ const Cart = ({ user, onLogout }) => {
                         </button>
                     ))}
                 </div>
-                {renderContent()}
+                {renderContent}
                 {notificationState !== 'hidden' && (
                     <div className={`notification ${notificationState}`}>
                         <img src="/src/assets/icons/sucsses.svg" alt="notification" />
@@ -172,6 +170,7 @@ const Cart = ({ user, onLogout }) => {
                 cartItems={cartItems}
                 setCartItems={setCartItems}
                 formatPrice={formatPrice}
+                fetchCart={fetchCart}
             />
         </div>
     );

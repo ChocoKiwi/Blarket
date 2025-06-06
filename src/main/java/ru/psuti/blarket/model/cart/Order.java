@@ -20,10 +20,6 @@ public class Order {
         PENDING, COMPLETED, CANCELLED
     }
 
-    public enum ItemStatus {
-        CART, SOLD, DEFERRED
-    }
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -45,10 +41,6 @@ public class Order {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderStatus status;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "item_status", nullable = false)
-    private ItemStatus itemStatus; // Новое поле для статуса товара
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

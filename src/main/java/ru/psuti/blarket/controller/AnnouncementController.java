@@ -1,7 +1,10 @@
 package ru.psuti.blarket.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -16,10 +19,9 @@ import ru.psuti.blarket.model.announcement.AnnouncementView;
 import ru.psuti.blarket.model.announcement.Category;
 import ru.psuti.blarket.model.user.Role;
 import ru.psuti.blarket.model.user.User;
-import ru.psuti.blarket.service.announcement.AnnouncementService;
 import ru.psuti.blarket.repository.UserRepository;
+import ru.psuti.blarket.service.announcement.AnnouncementService;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -36,7 +38,7 @@ public class AnnouncementController {
     private final AnnouncementService announcementService;
     private final UserRepository userRepository;
 
-    private final String getClientIp(HttpServletRequest request) {
+    private String getClientIp(HttpServletRequest request) {
         String ip = request.getHeader("X-Forwarded-For");
         if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
             ip = request.getHeader("Proxy-Client-IP");
@@ -51,7 +53,7 @@ public class AnnouncementController {
     }
 
     private boolean isBusinessAnnouncement(CreateAnnouncementDTO dto) {
-        boolean isBusiness = (dto.getPrice() != null && new BigDecimal(String.valueOf(dto.getPrice())).compareTo(new BigDecimal("100000")) >= 0) ||
+        boolean isBusiness = (dto.getPrice() != null && dto.getPrice() >= 100000) ||
                 (dto.getQuantity() != null && dto.getQuantity() >= 35) ||
                 (dto.getItemCondition() == Announcement.Condition.BUYSELL);
         LOGGER.debug("Проверка бизнес-объявления: condition={}, price={}, quantity={}, isBusiness={}",
@@ -60,7 +62,7 @@ public class AnnouncementController {
     }
 
     private boolean isBusinessAnnouncement(UpdateAnnouncementDTO dto) {
-        boolean isBusiness = (dto.getPrice() != null && new BigDecimal(String.valueOf(dto.getPrice())).compareTo(new BigDecimal("100000")) >= 0) ||
+        boolean isBusiness = (dto.getPrice() != null && dto.getPrice() >= 100000) ||
                 (dto.getQuantity() != null && dto.getQuantity() >= 35) ||
                 (dto.getItemCondition() == Announcement.Condition.BUYSELL);
         LOGGER.debug("Проверка бизнес-объявления: condition={}, price={}, quantity={}, isBusiness={}",
@@ -74,10 +76,6 @@ public class AnnouncementController {
             return null;
         }
         return userRepository.findByEmail(user.getEmail())
-                .map(refreshedUser -> {
-                    LOGGER.info("Обновлены данные: email={}, roles={}", refreshedUser.getEmail(), refreshedUser.getRoles());
-                    return refreshedUser;
-                })
                 .orElseGet(() -> {
                     LOGGER.warn("Пользователь с email {} не найден", user.getEmail());
                     return user;
@@ -85,24 +83,19 @@ public class AnnouncementController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createAnnouncement(@RequestBody CreateAnnouncementDTO dto, @AuthenticationPrincipal User user) {
-        if (user == null) {
-            LOGGER.warn("Неавторизован доступ к созданию объявления");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
+    public ResponseEntity<?> createAnnouncement(@Valid @RequestBody CreateAnnouncementDTO dto, @AuthenticationPrincipal User user) {
+        if (user == null || (user = refreshUserFromDB(user)) == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new CartController.ResponseMessage("error", ERROR_UNAUTHORIZED));
         }
-        User refreshedUser = refreshUserFromDB(user);
-        if (refreshedUser == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", ERROR_UNAUTHORIZED));
-        }
-        if (isBusinessAnnouncement(dto) && !refreshedUser.getRoles().contains(Role.PRO) && !refreshedUser.getRoles().contains(Role.ADMIN)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ERROR_BUSINESS_RESTRICTED));
+        if (isBusinessAnnouncement(dto) && !user.getRoles().contains(Role.PRO) && !user.getRoles().contains(Role.ADMIN)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new CartController.ResponseMessage("error", ERROR_BUSINESS_RESTRICTED));
         }
         try {
-            Announcement announcement = announcementService.createAnnouncement(dto, refreshedUser, false);
-            return ResponseEntity.status(HttpStatus.CREATED).body(announcement);
+            Announcement announcement = announcementService.createAnnouncement(dto, user, false);
+            return ResponseEntity.status(HttpStatus.CREATED).body(AnnouncementDTO.fromAnnouncement(announcement));
         } catch (Exception e) {
             LOGGER.error("Ошибка при создании объявления: {}", e.getMessage(), e);
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            return ResponseEntity.badRequest().body(new CartController.ResponseMessage("error", e.getMessage()));
         }
     }
 
@@ -580,6 +573,18 @@ public class AnnouncementController {
         } catch (Exception e) {
             LOGGER.error("Ошибка при автодополнении для префикса {}: {}", prefix, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Ошибка сервера"));
+        }
+    }
+
+    @Getter
+    @Setter
+    static class ResponseMessage {
+        private String status;
+        private String message;
+
+        public ResponseMessage(String status, String message) {
+            this.status = status;
+            this.message = message;
         }
     }
 }

@@ -1,26 +1,23 @@
-// CartItems.jsx
-import React, {useEffect, useCallback, useState} from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../../../api';
 import icons from '../../../assets/icons/icons';
 import '../../../App.scss';
 
-const CartItems = ({ user, onLogout, setBalance, itemStatus, cartItems, setCartItems, setDeferredItems, formatPrice, formatDate, showNotification }) => {
-    const [loading, setLoading] = useState(true);
+const CartItems = ({ user, onLogout, setBalance, deferred, cartItems, setCartItems, setDeferredItems, formatPrice, formatDate, showNotification }) => {
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const navigate = useNavigate();
 
     const fetchCart = useCallback(async () => {
         setLoading(true);
         try {
-            const { data } = await api.get(`/cart?itemStatus=${itemStatus}`, { withCredentials: true });
-            const filteredData = Array.isArray(data) ? data.filter(item => item.itemStatus === itemStatus) : [];
-            if (itemStatus === 'CART') {
-                setCartItems(filteredData);
+            const { data } = await api.get(`/cart?deferred=${deferred}`, { withCredentials: true });
+            if (!deferred) {
+                setCartItems(data);
             } else {
-                setDeferredItems(filteredData);
+                setDeferredItems(data);
             }
-            setLoading(false);
         } catch (e) {
             if (e.response?.status === 401) {
                 setError('Неавторизован');
@@ -30,16 +27,18 @@ const CartItems = ({ user, onLogout, setBalance, itemStatus, cartItems, setCartI
                 setError(e.response?.data?.message || 'Ошибка загрузки корзины');
                 showNotification('Корзина не загружена', 'ошибка', 'error');
             }
+        } finally {
             setLoading(false);
         }
-    }, [itemStatus, setCartItems, setDeferredItems, onLogout, navigate, showNotification]);
+    }, [deferred, setCartItems, setDeferredItems, onLogout, navigate, showNotification]);
 
     const updateQuantity = useCallback(
-        async (cartItemId, newQuantity) => {
+        async (cartItemId, newQuantity, setLoadingItem = () => {}) => {
             if (newQuantity < 1) return;
+            setLoadingItem(true);
             try {
                 const { data } = await api.put(`/cart/${cartItemId}`, { quantity: newQuantity }, { withCredentials: true });
-                if (itemStatus === 'CART') {
+                if (!deferred) {
                     setCartItems(prev => prev.map(item => (item.id === cartItemId ? { ...item, quantity: data.quantity } : item)));
                     showNotification(data.announcementTitle || 'Товар', 'количество обновлено');
                 } else {
@@ -48,18 +47,21 @@ const CartItems = ({ user, onLogout, setBalance, itemStatus, cartItems, setCartI
             } catch (e) {
                 setError(e.response?.data?.message || 'Ошибка обновления количества');
                 showNotification('Ошибка обновления количества', 'ошибка', 'error');
+            } finally {
+                setLoadingItem(false);
             }
         },
-        [itemStatus, setCartItems, setDeferredItems, showNotification]
+        [deferred, setCartItems, setDeferredItems, showNotification]
     );
 
     const removeFromCart = useCallback(
-        async (cartItemId) => {
+        async (cartItemId, setLoadingItem = () => {}) => {
+            setLoadingItem(true);
             try {
                 const item = cartItems.find(i => i.id === cartItemId);
                 if (!item) return;
                 await api.delete(`/cart/${cartItemId}`, { withCredentials: true });
-                if (itemStatus === 'CART') {
+                if (!deferred) {
                     setCartItems(prev => prev.filter(item => item.id !== cartItemId));
                     showNotification(item.announcementTitle || 'Товар', 'удалён из корзины');
                 } else {
@@ -69,13 +71,16 @@ const CartItems = ({ user, onLogout, setBalance, itemStatus, cartItems, setCartI
             } catch (e) {
                 setError(e.response?.data?.message || 'Ошибка удаления товара');
                 showNotification('Ошибка удаления товара', 'ошибка', 'error');
+            } finally {
+                setLoadingItem(false);
             }
         },
-        [cartItems, itemStatus, setCartItems, setDeferredItems, showNotification]
+        [cartItems, deferred, setCartItems, setDeferredItems, showNotification]
     );
 
     const deferItem = useCallback(
-        async (cartItemId) => {
+        async (cartItemId, setLoadingItem = () => {}) => {
+            setLoadingItem(true);
             try {
                 const item = cartItems.find(i => i.id === cartItemId);
                 if (!item) return;
@@ -86,13 +91,16 @@ const CartItems = ({ user, onLogout, setBalance, itemStatus, cartItems, setCartI
             } catch (e) {
                 setError(e.response?.data?.message || 'Ошибка при отложении товара');
                 showNotification('Ошибка при отложении товара', 'ошибка', 'error');
+            } finally {
+                setLoadingItem(false);
             }
         },
         [cartItems, setCartItems, setDeferredItems, showNotification]
     );
 
     const restoreItem = useCallback(
-        async (cartItemId) => {
+        async (cartItemId, setLoadingItem = () => {}) => {
+            setLoadingItem(true);
             try {
                 const item = cartItems.find(i => i.id === cartItemId);
                 if (!item) return;
@@ -103,6 +111,8 @@ const CartItems = ({ user, onLogout, setBalance, itemStatus, cartItems, setCartI
             } catch (e) {
                 setError(e.response?.data?.message || 'Ошибка при восстановлении товара');
                 showNotification('Ошибка при восстановлении товара', 'ошибка', 'error');
+            } finally {
+                setLoadingItem(false);
             }
         },
         [cartItems, setCartItems, setDeferredItems, showNotification]
@@ -116,7 +126,7 @@ const CartItems = ({ user, onLogout, setBalance, itemStatus, cartItems, setCartI
         return <div className="text-center loading">Загрузка...</div>;
     }
 
-    if (error && !cartItems.length && itemStatus !== 'CART' && itemStatus !== 'DEFERRED') {
+    if (error && !cartItems.length) {
         return (
             <div className="error-block">
                 <p className="error-text">{error}</p>
@@ -130,7 +140,7 @@ const CartItems = ({ user, onLogout, setBalance, itemStatus, cartItems, setCartI
     if (!cartItems.length) {
         return (
             <div className="cart-empty">
-                <p>{itemStatus === 'DEFERRED' ? 'Нет отложенных товаров' : 'Корзина пуста'}</p>
+                <p>{deferred ? 'Нет отложенных товаров' : 'Корзина пуста'}</p>
                 <Link to="/" className="button">
                     На главную
                 </Link>
@@ -142,50 +152,70 @@ const CartItems = ({ user, onLogout, setBalance, itemStatus, cartItems, setCartI
         <div className="cart-content">
             <div className="cart-items">
                 {cartItems.map((item) => (
-                    <div className="card-item" key={item.id}>
-                        <div className="cart-item">
-                            <Link to={`/users/${user.id}/product/${item.announcementId}`}>
-                                <img src={item.imageUrl || ''} alt={item.announcementTitle || 'Товар'} className="cart-item-image" />
-                            </Link>
-                            <div className="cart-item-details">
-                                <div className="title-button">
-                                    <h3 style={{ whiteSpace: 'pre-line' }}>{item.announcementTitle || 'Товар'}</h3>
-                                    <div className="button-container">
-                                        <div
-                                            className="nav-link"
-                                            onClick={() => (itemStatus === 'DEFERRED' ? restoreItem(item.id) : deferItem(item.id))}
-                                        >
-                                            <icons.archive className="menu-icon" />
-                                            {itemStatus === 'DEFERRED' ? 'Восстановить' : 'Отложить'}
-                                        </div>
-                                        <div className="nav-link" onClick={() => removeFromCart(item.id)}>
-                                            <icons.delete className="menu-icon" />
-                                            Удалить
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="counter">
-                                    <button
-                                        className="counter-btn"
-                                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                        disabled={item.quantity <= 1}
-                                    >
-                                        -
-                                    </button>
-                                    <span className="counter-value">{item.quantity}</span>
-                                    <button
-                                        className="counter-btn"
-                                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                        disabled={item.quantity >= item.availableQuantity}
-                                    >
-                                        +
-                                    </button>
-                                </div>
-                                <p>{formatPrice(item.price)} ₽</p>
+                    <CartItem
+                        key={item.id}
+                        item={item}
+                        user={user}
+                        deferred={deferred}
+                        updateQuantity={updateQuantity}
+                        removeFromCart={removeFromCart}
+                        deferItem={deferItem}
+                        restoreItem={restoreItem}
+                        formatPrice={formatPrice}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const CartItem = ({ item, user, deferred, updateQuantity, removeFromCart, deferItem, restoreItem, formatPrice }) => {
+    const [loadingItem, setLoadingItem] = useState(false);
+
+    return (
+        <div className="card-item">
+            <div className="cart-item">
+                <Link to={`/users/${user.id}/product/${item.announcementId}`}>
+                    <img src={item.imageUrl || ''} alt={item.announcementTitle || 'Товар'} className="cart-item-image" loading="lazy" />
+                </Link>
+                <div className="cart-item-details">
+                    <div className="title-button">
+                        <h3 style={{ whiteSpace: 'pre-line' }}>{item.announcementTitle || 'Товар'}</h3>
+                        <div className="button-container">
+                            <div
+                                className="nav-link"
+                                onClick={() => (deferred ? restoreItem(item.id, setLoadingItem) : deferItem(item.id, setLoadingItem))}
+                                disabled={loadingItem}
+                            >
+                                <icons.archive className="menu-icon" />
+                                {deferred ? 'Восстановить' : 'Отложить'}
+                            </div>
+                            <div className="nav-link" onClick={() => removeFromCart(item.id, setLoadingItem)} disabled={loadingItem}>
+                                <icons.delete className="menu-icon" />
+                                Удалить
                             </div>
                         </div>
                     </div>
-                ))}
+                    <div className="counter">
+                        <button
+                            className="counter-btn"
+                            onClick={() => updateQuantity(item.id, item.quantity - 1, setLoadingItem)}
+                            disabled={item.quantity <= 1 || loadingItem}
+                        >
+                            -
+                        </button>
+                        <span className="counter-value">{item.quantity}</span>
+                        <button
+                            className="counter-btn"
+                            onClick={() => updateQuantity(item.id, item.quantity + 1, setLoadingItem)}
+                            disabled={item.quantity >= item.availableQuantity || loadingItem}
+                        >
+                            +
+                        </button>
+                    </div>
+                    <p>{formatPrice(item.price)} ₽</p>
+                    {loadingItem && <span className="loading-text">Обработка...</span>}
+                </div>
             </div>
         </div>
     );

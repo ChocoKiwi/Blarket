@@ -1,5 +1,6 @@
 package ru.psuti.blarket.controller;
 
+import jakarta.validation.Valid;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -23,24 +24,24 @@ public class OrderController {
     private final OrderService orderService;
 
     @PostMapping("/checkout")
-    public ResponseEntity<String> checkout(
+    public ResponseEntity<?> checkout(
             @AuthenticationPrincipal User user,
-            @RequestBody CheckoutRequest request) {
+            @Valid @RequestBody CheckoutRequest request) {
         logger.info("Processing checkout for userId: {}", user.getId());
         try {
             orderService.checkout(user.getId(), request.getCartItems());
-            return ResponseEntity.ok("Заказ успешно оформлен");
+            return ResponseEntity.ok().body(new ResponseMessage("success", "Заказ успешно оформлен"));
         } catch (IllegalArgumentException | IllegalStateException e) {
             logger.error("Checkout failed: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body(new ResponseMessage("error", e.getMessage()));
         } catch (Exception e) {
             logger.error("Server error during checkout: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body("Ошибка сервера: " + e.getMessage());
+            return ResponseEntity.status(500).body(new ResponseMessage("error", "Ошибка сервера: " + e.getMessage()));
         }
     }
 
     @GetMapping("/purchased")
-    public ResponseEntity<List<CartItemDTO>> getPurchasedItems(
+    public ResponseEntity<?> getPurchasedItems(
             @AuthenticationPrincipal User user,
             @RequestParam(defaultValue = "popularity") String sort) {
         logger.info("Fetching purchased items for userId: {} with sort: {}", user.getId(), sort);
@@ -49,13 +50,26 @@ public class OrderController {
             return ResponseEntity.ok(purchasedItems);
         } catch (Exception e) {
             logger.error("Error fetching purchased items: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body(null);
+            return ResponseEntity.status(500).body(new ResponseMessage("error", "Ошибка сервера: " + e.getMessage()));
         }
     }
 
     @Setter
     @Getter
     static class CheckoutRequest {
+        @jakarta.validation.constraints.NotNull(message = "Список товаров не может быть пустым")
         private List<CartItemDTO> cartItems;
+    }
+
+    @Getter
+    @Setter
+    static class ResponseMessage {
+        private String status;
+        private String message;
+
+        public ResponseMessage(String status, String message) {
+            this.status = status;
+            this.message = message;
+        }
     }
 }

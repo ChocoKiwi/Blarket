@@ -17,6 +17,7 @@ import ru.psuti.blarket.repository.announcement.AnnouncementRepository;
 import ru.psuti.blarket.repository.announcement.AnnouncementViewRepository;
 import ru.psuti.blarket.repository.announcement.CategoryRepository;
 import ru.psuti.blarket.repository.cart.OrderRepository;
+import ru.psuti.blarket.util.ImageUrlUtil;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -31,16 +32,14 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
     private static final String ERROR_NOT_FOUND = "Объявление не найдено";
     private static final String ERROR_NOT_AUTHORIZED = "Нет прав для изменения или удаления объявления";
-    private static final String ERROR_IMAGE_URLS = "Ошибка преобразования imageUrls";
     private static final String ERROR_CATEGORY_NOT_FOUND = "Категория не найдена";
-    private static final Double BUSINESS_PRICE_THRESHOLD = new Double("100000");
+    private static final Double BUSINESS_PRICE_THRESHOLD = 100000.0;
     private static final int BUSINESS_QUANTITY_THRESHOLD = 35;
 
     private final AnnouncementRepository announcementRepository;
     private final CategoryRepository categoryRepository;
-    private final ObjectMapper objectMapper;
     private final AnnouncementViewRepository announcementViewRepository;
-    private final OrderRepository orderRepository; // Добавляем OrderRepository
+    private final OrderRepository orderRepository;
 
     private AnnouncementDTO toAnnouncementDTO(Announcement announcement) {
         AnnouncementDTO dto = new AnnouncementDTO();
@@ -48,13 +47,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         dto.setTitle(announcement.getTitle());
         dto.setDescription(announcement.getDescription());
         dto.setPrice(announcement.getPrice());
-        try {
-            dto.setImageUrls(announcement.getImageUrls() != null
-                    ? objectMapper.readValue(announcement.getImageUrls(), new TypeReference<List<String>>() {})
-                    : List.of());
-        } catch (Exception e) {
-            dto.setImageUrls(List.of());
-        }
+        dto.setImageUrls(Arrays.asList(ImageUrlUtil.parseImageUrls(announcement.getImageUrls())));
         dto.setAddress(announcement.getAddress());
         dto.setQuantity(announcement.getQuantity());
         dto.setCreatedAt(announcement.getCreatedAt());
@@ -67,7 +60,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         dto.setUserId(announcement.getUser() != null ? announcement.getUser().getId() : null);
         dto.setAuthorName(announcement.getUser() != null ? announcement.getUser().getName() : null);
         dto.setStatus(announcement.getStatus());
-        // Устанавливаем количество проданных товаров
         Integer quantitySold = orderRepository.sumQuantityByAnnouncementId(announcement.getId());
         dto.setQuantitySold(quantitySold != null ? quantitySold : 0);
         return dto;
@@ -75,29 +67,20 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
     @Override
     public Announcement createAnnouncement(CreateAnnouncementDTO dto, User user, boolean isDraft) {
+        validateCreateAnnouncementDTO(dto);
         Announcement announcement = new Announcement();
         announcement.setUser(user);
         announcement.setTitle(dto.getTitle());
         announcement.setDescription(dto.getDescription());
         announcement.setPrice(dto.getPrice());
-        List<String> imageUrls = dto.getImageUrls() != null ? dto.getImageUrls() : Collections.emptyList();
-        for (String url : imageUrls) {
-            if (!url.startsWith("data:image/") || !url.contains(";base64,")) {
-                throw new IllegalArgumentException("Некорректный формат изображения: должно начинаться с 'data:image/' и содержать ';base64,'");
-            }
-        }
-        try {
-            announcement.setImageUrls(imageUrls.isEmpty() ? "[]" : objectMapper.writeValueAsString(imageUrls));
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Ошибка при сохранении изображений");
-        }
+        announcement.setImageUrls(ImageUrlUtil.serializeImageUrls(dto.getImageUrls()));
         announcement.setAddress(dto.getAddress());
         announcement.setQuantity(dto.getQuantity() != null ? dto.getQuantity() : 1);
         announcement.setCondition(dto.getItemCondition());
         announcement.setStatus(isDraft ? Announcement.Status.DRAFT : determineStatus(dto));
         if (dto.getCategoryId() != null) {
             Category category = categoryRepository.findById(dto.getCategoryId())
-                    .orElseThrow(() -> new IllegalArgumentException("Категория не найдена"));
+                    .orElseThrow(() -> new IllegalArgumentException(ERROR_CATEGORY_NOT_FOUND));
             announcement.setCategory(category);
         }
         return announcementRepository.save(announcement);
@@ -105,32 +88,23 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
     @Override
     public Announcement updateAnnouncement(Long id, UpdateAnnouncementDTO dto, User user, boolean isDraft) {
+        validateUpdateAnnouncementDTO(dto);
         Announcement announcement = announcementRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Объявление не найдено"));
+                .orElseThrow(() -> new IllegalArgumentException(ERROR_NOT_FOUND));
         if (!announcement.getUser().getId().equals(user.getId())) {
-            throw new SecurityException("Нет прав для редактирования объявления");
+            throw new SecurityException(ERROR_NOT_AUTHORIZED);
         }
         announcement.setTitle(dto.getTitle());
         announcement.setDescription(dto.getDescription());
         announcement.setPrice(dto.getPrice());
-        List<String> imageUrls = dto.getImageUrls() != null ? dto.getImageUrls() : Collections.emptyList();
-        for (String url : imageUrls) {
-            if (!url.startsWith("data:image/") || !url.contains(";base64,")) {
-                throw new IllegalArgumentException("Некорректный формат изображения: должно начинаться с 'data:image/' и содержать ';base64,'");
-            }
-        }
-        try {
-            announcement.setImageUrls(imageUrls.isEmpty() ? "[]" : objectMapper.writeValueAsString(imageUrls));
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Ошибка при сохранении изображений");
-        }
+        announcement.setImageUrls(ImageUrlUtil.serializeImageUrls(dto.getImageUrls()));
         announcement.setAddress(dto.getAddress());
         announcement.setQuantity(dto.getQuantity() != null ? dto.getQuantity() : 1);
         announcement.setCondition(dto.getItemCondition());
         announcement.setStatus(isDraft ? Announcement.Status.DRAFT : determineStatus(dto));
         if (dto.getCategoryId() != null) {
             Category category = categoryRepository.findById(dto.getCategoryId())
-                    .orElseThrow(() -> new IllegalArgumentException("Категория не найдена"));
+                    .orElseThrow(() -> new IllegalArgumentException(ERROR_CATEGORY_NOT_FOUND));
             announcement.setCategory(category);
         }
         return announcementRepository.save(announcement);
@@ -652,5 +626,41 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             return Announcement.Status.BUSINESS;
         }
         return Announcement.Status.ACTIVE;
+    }
+
+    private void validateImageUrls(List<String> imageUrls) {
+        if (imageUrls != null) {
+            for (String url : imageUrls) {
+                if (!url.startsWith("data:image/") || !url.contains(";base64,")) {
+                    throw new IllegalArgumentException("Некорректный формат изображения: должно начинаться с 'data:image/' и содержать ';base64,'");
+                }
+            }
+        }
+    }
+
+    private void validateUpdateAnnouncementDTO(UpdateAnnouncementDTO dto) {
+        if (dto.getTitle() != null && dto.getTitle().isBlank()) {
+            throw new IllegalArgumentException("Заголовок не может быть пустым");
+        }
+        if (dto.getPrice() != null && dto.getPrice() < 0) {
+            throw new IllegalArgumentException("Цена не может быть отрицательной");
+        }
+        if (dto.getQuantity() != null && dto.getQuantity() <= 0) {
+            throw new IllegalArgumentException("Количество должно быть больше 0");
+        }
+        validateImageUrls(dto.getImageUrls());
+    }
+
+    private void validateCreateAnnouncementDTO(CreateAnnouncementDTO dto) {
+        if (dto.getTitle() == null || dto.getTitle().isBlank()) {
+            throw new IllegalArgumentException("Заголовок не может быть пустым");
+        }
+        if (dto.getPrice() == null || dto.getPrice() < 0) {
+            throw new IllegalArgumentException("Цена должна быть указана и не может быть отрицательной");
+        }
+        if (dto.getQuantity() != null && dto.getQuantity() <= 0) {
+            throw new IllegalArgumentException("Количество должно быть больше 0");
+        }
+        validateImageUrls(dto.getImageUrls());
     }
 }

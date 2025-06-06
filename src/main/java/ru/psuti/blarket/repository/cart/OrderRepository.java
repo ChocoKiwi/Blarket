@@ -18,10 +18,16 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findByUserId(Long userId);
 
-    List<Order> findByUserIdAndItemStatus(Long userId, Order.ItemStatus itemStatus);
-
     @Query("SELECT o FROM Order o WHERE o.user.id = :userId AND o.status = 'COMPLETED'")
     List<Order> findPurchasedByUserId(Long userId);
 
     Optional<Order> findByUserAndAnnouncement(User user, Announcement announcement);
+
+    @Query("SELECT new ru.psuti.blarket.dto.cart.CartItemDTO(" +
+            "MIN(o.id), o.announcement.id, o.announcement.title, o.announcement.price, " +
+            "o.announcement.imageUrls, o.announcement.quantity, SUM(o.quantity)) " +
+            "FROM Order o WHERE o.user.id = :userId AND o.status = 'COMPLETED' " +
+            "GROUP BY o.announcement.id, o.announcement.title, o.announcement.price, " +
+            "o.announcement.imageUrls, o.announcement.quantity")
+    List<ru.psuti.blarket.dto.cart.CartItemDTO> findAggregatedPurchasedByUserId(Long userId);
 }
