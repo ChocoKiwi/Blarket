@@ -180,7 +180,9 @@ const CartItem = ({ item, user, deferred, updateQuantity, removeFromCart, deferI
                 </Link>
                 <div className="cart-item-details">
                     <div className="title-button">
-                        <h3 style={{ whiteSpace: 'pre-line' }}>{item.announcementTitle || 'Товар'}</h3>
+                        <Link to={`/users/${user.id}/product/${item.announcementId}`}>
+                            <h3 style={{ whiteSpace: 'pre-line'}}>{item.announcementTitle || 'Товар'}</h3>
+                        </Link>
                         <div className="button-container">
                             <div
                                 className="nav-link"

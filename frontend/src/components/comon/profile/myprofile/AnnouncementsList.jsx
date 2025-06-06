@@ -141,8 +141,6 @@ const AnnouncementsList = () => {
         const announcement = data.find((a) => a.id === id);
         if (!announcement) return;
 
-        if (!window.confirm(`Удалить объявление "${announcement.title}"?`)) return;
-
         try {
             await api.delete(`/announcements/${id}`, { withCredentials: true });
             setData(data.filter((a) => a.id !== id));
@@ -309,10 +307,6 @@ const AnnouncementsList = () => {
                                                              onClick={() => handleStatusChange(a.id, 'RESTORED')}>
                                                             <icons.rest className="menu-icon"/>
                                                             Восстановить
-                                                        </div>
-                                                        <div className="nav-link" onClick={() => handleDelete(a.id)}>
-                                                            <icons.delete className="menu-icon"/>
-                                                            Удалить
                                                         </div>
                                                     </>
                                                 )}

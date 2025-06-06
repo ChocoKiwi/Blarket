@@ -66,11 +66,11 @@ public class OrderService {
         double expectedFinalCost = calculatedTotalPrice + deliveryCost - discount;
 
         if (Math.abs(expectedFinalCost - finalCost) > 0.01) {
-            throw new IllegalArgumentException("Итоговая стоимость не соответствует расчётам: ожидалось " + expectedFinalCost + " руб.");
+            throw new IllegalArgumentException("Итоговая стоимость не соответствует расчётам: ожидалось " + expectedFinalCost + " ₽");
         }
 
         if (wallet.getBalance() < finalCost) {
-            throw new IllegalStateException("Недостаточно средств на балансе: требуется " + finalCost + " руб.");
+            throw new IllegalStateException("Недостаточно средств на балансе: требуется " + finalCost + " ₽");
         }
 
         for (CartItemDTO item : cartItems) {

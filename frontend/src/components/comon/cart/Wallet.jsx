@@ -38,13 +38,13 @@ const Wallet = ({ user, onLogout, setBalance, cartItems, setCartItems, formatPri
     };
 
     const handleTopUp = async () => {
-        if (!amount || parseInt(amount) <= 0) {
+        if (!amount || parseInt(amount.replace(/\s/g, '')) <= 0) {
             showNotification('Введите корректную сумму', 'error');
             return;
         }
         setIsTopUpLoading(true);
         try {
-            const { data } = await api.post('/wallet/top-up', { amount: parseInt(amount) }, { withCredentials: true });
+            const { data } = await api.post('/wallet/top-up', { amount: parseInt(amount.replace(/\s/g, '')) }, { withCredentials: true });
             hasCheckedPayment.current = false;
             if (data && typeof data === 'string' && data.startsWith('http')) {
                 window.location.href = data;
@@ -114,6 +114,19 @@ const Wallet = ({ user, onLogout, setBalance, cartItems, setCartItems, formatPri
         }
     };
 
+    const formatInputAmount = (value) => {
+        const cleanValue = value.replace(/[^0-9]/g, '');
+        if (!cleanValue) return '';
+        const formatted = parseInt(cleanValue).toLocaleString('ru-RU');
+        return `${formatted} ₽`;
+    };
+
+    const handleAmountChange = (e) => {
+        const value = e.target.value;
+        const cleanValue = value.replace(/[^0-9]/g, '');
+        setAmount(formatInputAmount(cleanValue));
+    };
+
     useEffect(() => {
         fetchWallet();
         const params = new URLSearchParams(location.search);
@@ -140,23 +153,29 @@ const Wallet = ({ user, onLogout, setBalance, cartItems, setCartItems, formatPri
         <div className="wallet">
             <div className="wallet-balance-section">
                 <div className="balance">
-                    <div className="balance-info">
-                        <img src={WalletIcon} alt="wallet" />
-                        <p>{formatPrice(balance)} ₽</p>
-                    </div>
-                    <div className="top-up-container">
-                        <input
-                            type="number"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            placeholder="Сумма"
-                            className="input-field"
-                            disabled={isTopUpLoading}
-                        />
-                        <button onClick={handleTopUp} className="skibidi-button" disabled={isTopUpLoading}>
-                            {isTopUpLoading ? 'Загрузка...' : 'Пополнить'}
-                        </button>
-                    </div>
+                    <img src={WalletIcon} alt="wallet"/>
+                    <p>{formatPrice(balance)} ₽</p>
+                </div>
+                <div className="top-up-container">
+                    <input
+                        type="text"
+                        value={amount}
+                        onChange={handleAmountChange}
+                        placeholder="Сумма"
+                        className="input-field"
+                        disabled={isTopUpLoading}
+                    />
+                    <a
+                        href="#"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            handleTopUp();
+                        }}
+                        className="top-up-link"
+                        disabled={isTopUpLoading}
+                    >
+                        {isTopUpLoading ? 'Загрузка...' : 'Пополнить'}
+                    </a>
                 </div>
             </div>
             <div className="wallet-info-section">
@@ -167,44 +186,45 @@ const Wallet = ({ user, onLogout, setBalance, cartItems, setCartItems, formatPri
                     </div>
                     <div className="radio-group">
                         <div className="custom-radio">
-                            <input type="radio" id="payment-on-delivery" name="payment" value="on-delivery" defaultChecked />
+                            <input type="radio" id="payment-on-delivery" name="payment" value="on-delivery"
+                                   defaultChecked/>
                             <span className="radio-mark"></span>
                             <label htmlFor="payment-on-delivery">При получении</label>
                         </div>
                         <div className="custom-radio">
-                            <input type="radio" id="payment-immediate" name="payment" value="immediate" />
+                            <input type="radio" id="payment-immediate" name="payment" value="immediate"/>
                             <span className="radio-mark"></span>
                             <label htmlFor="payment-immediate">Сразу</label>
                         </div>
                     </div>
                     <div className="input">
                         <label htmlFor="email">Адрес почтового отделения</label>
-                        <input type="email" name="email" id="email" required />
+                        <input type="email" name="email" id="email" required/>
                     </div>
                     <div className="input">
                         <label htmlFor="index">Почтовый индекс</label>
-                        <input type="text" name="index" id="index" required />
+                        <input type="text" name="index" id="index" required/>
                     </div>
                 </div>
                 <div className="info-details">
                     <h3>Детали заказа</h3>
                     <div className="details">
                         <p>Товары ({Array.isArray(cartItems) ? cartItems.length : 0} шт.)</p>
-                        <p>{formatPrice(totalCost)} руб.</p>
+                        <p>{formatPrice(totalCost)} ₽</p>
                     </div>
                     <div className="details">
                         <p>Доставка</p>
-                        <p>{formatPrice(deliveryCost)} руб.</p>
+                        <p>{formatPrice(deliveryCost)} ₽</p>
                     </div>
                     <div className="details">
                         <p>Скидка</p>
-                        <p>- {formatPrice(discount)} руб.</p>
+                        <p>- {formatPrice(discount)} ₽</p>
                     </div>
                 </div>
                 <div className="total-and-button">
                     <div className="total">
                         <p>Итого</p>
-                        <p>{formatPrice(finalCost)} руб.</p>
+                        <p>{formatPrice(finalCost)} ₽</p>
                     </div>
                     <button
                         className="button primary"
@@ -217,7 +237,7 @@ const Wallet = ({ user, onLogout, setBalance, cartItems, setCartItems, formatPri
             </div>
             {notificationState !== 'hidden' && (
                 <div className={`notification ${notificationState}`}>
-                    <img src={successIcon} alt="notification" />
+                    <img src={successIcon} alt="notification"/>
                     <span>{notificationMessage}</span>
                 </div>
             )}
