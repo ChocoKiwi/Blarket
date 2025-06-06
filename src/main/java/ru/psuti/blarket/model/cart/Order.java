@@ -21,7 +21,7 @@ public class Order {
     }
 
     public enum ItemStatus {
-        CART, DEFERRED
+        CART, SOLD, DEFERRED
     }
 
     @Id

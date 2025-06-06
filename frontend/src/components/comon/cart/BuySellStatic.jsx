@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../api';
-import Header from '../comon/Header';
-import '../../App.scss';
+import api from '../../../api';
+import Header from '../Header';
+import '../../../App.scss';
 
 const BuySellStatic = ({ user, onLogout, setUser }) => {
     const [transactions, setTransactions] = useState([]);
@@ -62,9 +62,7 @@ const BuySellStatic = ({ user, onLogout, setUser }) => {
     };
 
     return (
-        <div className="main-container">
             <div className="stats-content">
-                <h3>Статистика операций</h3>
                 {message && <p className="stats-message">{message}</p>}
                 <table className="transaction-table">
                     <thead>
@@ -84,7 +82,7 @@ const BuySellStatic = ({ user, onLogout, setUser }) => {
                                 <td style={{ whiteSpace: 'pre-line' }}>{getOperationName(tx)}</td>
                                 <td>{getStatus(tx)}</td>
                                 <td>{formatDate(tx.createdAt)}</td>
-                                <td>{formatPrice(tx.amount)} руб.</td>
+                                <td className={'price'}>{formatPrice(tx.amount)} ₽</td>
                             </tr>
                         ))
                     ) : (
@@ -95,7 +93,6 @@ const BuySellStatic = ({ user, onLogout, setUser }) => {
                     </tbody>
                 </table>
             </div>
-        </div>
     );
 };
 

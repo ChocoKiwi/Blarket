@@ -1,37 +1,25 @@
+// CartItems.jsx
 import React, {useEffect, useCallback, useState} from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../../api';
-import icons from '../../assets/icons/icons';
-import successIcon from '../../assets/icons/sucsses.svg';
-import '../../App.scss';
+import api from '../../../api';
+import icons from '../../../assets/icons/icons';
+import '../../../App.scss';
 
-const CartItems = ({ user, onLogout, setBalance, itemStatus, cartItems, setCartItems, formatPrice, formatDate }) => {
+const CartItems = ({ user, onLogout, setBalance, itemStatus, cartItems, setCartItems, setDeferredItems, formatPrice, formatDate, showNotification }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [notificationState, setNotificationState] = useState('hidden');
-    const [notificationMessage, setNotificationMessage] = useState('');
     const navigate = useNavigate();
-
-    const showNotification = (title, action, type = 'success') => {
-        const variations = [
-            `Товар "${title}" теперь ${action}!`,
-            `Готово! "${title}" успешно ${action}.`,
-            `Успех! Товар "${title}" ${action}.`,
-            `"${title}" теперь ${action}. Отлично!`
-        ];
-        const message = variations[Math.floor(Math.random() * variations.length)];
-        setNotificationMessage(type === 'error' ? `Ошибка: ${title}` : message);
-        setNotificationState('visible');
-        setTimeout(() => setNotificationState('hiding'), 3000);
-        setTimeout(() => setNotificationState('hidden'), 3500);
-    };
 
     const fetchCart = useCallback(async () => {
         setLoading(true);
         try {
             const { data } = await api.get(`/cart?itemStatus=${itemStatus}`, { withCredentials: true });
-            const filteredData = data.filter(item => item.itemStatus === itemStatus);
-            setCartItems(filteredData);
+            const filteredData = Array.isArray(data) ? data.filter(item => item.itemStatus === itemStatus) : [];
+            if (itemStatus === 'CART') {
+                setCartItems(filteredData);
+            } else {
+                setDeferredItems(filteredData);
+            }
             setLoading(false);
         } catch (e) {
             if (e.response?.status === 401) {
@@ -44,68 +32,80 @@ const CartItems = ({ user, onLogout, setBalance, itemStatus, cartItems, setCartI
             }
             setLoading(false);
         }
-    }, [onLogout, itemStatus, setCartItems, navigate]);
+    }, [itemStatus, setCartItems, setDeferredItems, onLogout, navigate, showNotification]);
 
     const updateQuantity = useCallback(
         async (cartItemId, newQuantity) => {
             if (newQuantity < 1) return;
             try {
                 const { data } = await api.put(`/cart/${cartItemId}`, { quantity: newQuantity }, { withCredentials: true });
-                setCartItems(cartItems.map((item) => (item.id === cartItemId ? { ...item, quantity: data.quantity } : item)));
-                showNotification(data.announcementTitle, 'количество обновлено');
+                if (itemStatus === 'CART') {
+                    setCartItems(prev => prev.map(item => (item.id === cartItemId ? { ...item, quantity: data.quantity } : item)));
+                    showNotification(data.announcementTitle || 'Товар', 'количество обновлено');
+                } else {
+                    setDeferredItems(prev => prev.map(item => (item.id === cartItemId ? { ...item, quantity: data.quantity } : item)));
+                }
             } catch (e) {
                 setError(e.response?.data?.message || 'Ошибка обновления количества');
                 showNotification('Ошибка обновления количества', 'ошибка', 'error');
             }
         },
-        [cartItems, setCartItems]
+        [itemStatus, setCartItems, setDeferredItems, showNotification]
     );
 
     const removeFromCart = useCallback(
         async (cartItemId) => {
             try {
                 const item = cartItems.find(i => i.id === cartItemId);
+                if (!item) return;
                 await api.delete(`/cart/${cartItemId}`, { withCredentials: true });
-                setCartItems(cartItems.filter((item) => item.id !== cartItemId));
-                showNotification(item.announcementTitle, 'удалён из корзины');
+                if (itemStatus === 'CART') {
+                    setCartItems(prev => prev.filter(item => item.id !== cartItemId));
+                    showNotification(item.announcementTitle || 'Товар', 'удалён из корзины');
+                } else {
+                    setDeferredItems(prev => prev.filter(item => item.id !== cartItemId));
+                    showNotification(item.announcementTitle || 'Товар', 'удалён из отложенных');
+                }
             } catch (e) {
                 setError(e.response?.data?.message || 'Ошибка удаления товара');
                 showNotification('Ошибка удаления товара', 'ошибка', 'error');
             }
         },
-        [cartItems, setCartItems]
+        [cartItems, itemStatus, setCartItems, setDeferredItems, showNotification]
     );
 
     const deferItem = useCallback(
         async (cartItemId) => {
             try {
                 const item = cartItems.find(i => i.id === cartItemId);
+                if (!item) return;
                 const { data } = await api.put(`/cart/defer/${cartItemId}?defer=true`, null, { withCredentials: true });
-                setCartItems(cartItems.filter((item) => item.id !== cartItemId));
-                showNotification(item.announcementTitle, 'отложен');
-                await fetchCart();
+                setCartItems(prev => prev.filter(item => item.id !== cartItemId));
+                setDeferredItems(prev => [...prev, data]);
+                showNotification(item.announcementTitle || 'Товар', 'отложен');
             } catch (e) {
                 setError(e.response?.data?.message || 'Ошибка при отложении товара');
                 showNotification('Ошибка при отложении товара', 'ошибка', 'error');
             }
         },
-        [cartItems, setCartItems, fetchCart]
+        [cartItems, setCartItems, setDeferredItems, showNotification]
     );
 
     const restoreItem = useCallback(
         async (cartItemId) => {
             try {
                 const item = cartItems.find(i => i.id === cartItemId);
+                if (!item) return;
                 const { data } = await api.put(`/cart/defer/${cartItemId}?defer=false`, null, { withCredentials: true });
-                setCartItems(cartItems.filter((item) => item.id !== cartItemId));
-                showNotification(item.announcementTitle, 'восстановлен');
-                await fetchCart();
+                setDeferredItems(prev => prev.filter(item => item.id !== cartItemId));
+                setCartItems(prev => [...prev, data]);
+                showNotification(item.announcementTitle || 'Товар', 'восстановлен в корзину');
             } catch (e) {
                 setError(e.response?.data?.message || 'Ошибка при восстановлении товара');
                 showNotification('Ошибка при восстановлении товара', 'ошибка', 'error');
             }
         },
-        [cartItems, setCartItems, fetchCart]
+        [cartItems, setCartItems, setDeferredItems, showNotification]
     );
 
     useEffect(() => {
@@ -145,21 +145,21 @@ const CartItems = ({ user, onLogout, setBalance, itemStatus, cartItems, setCartI
                     <div className="card-item" key={item.id}>
                         <div className="cart-item">
                             <Link to={`/users/${user.id}/product/${item.announcementId}`}>
-                                <img src={item.imageUrl || ''} alt={item.announcementTitle} className="cart-item-image" />
+                                <img src={item.imageUrl || ''} alt={item.announcementTitle || 'Товар'} className="cart-item-image" />
                             </Link>
                             <div className="cart-item-details">
                                 <div className="title-button">
-                                    <h3 style={{ whiteSpace: 'pre-line' }}>{item.announcementTitle}</h3>
+                                    <h3 style={{ whiteSpace: 'pre-line' }}>{item.announcementTitle || 'Товар'}</h3>
                                     <div className="button-container">
                                         <div
                                             className="nav-link"
                                             onClick={() => (itemStatus === 'DEFERRED' ? restoreItem(item.id) : deferItem(item.id))}
                                         >
-                                            <icons.archive className={'menu-icon'} />
+                                            <icons.archive className="menu-icon" />
                                             {itemStatus === 'DEFERRED' ? 'Восстановить' : 'Отложить'}
                                         </div>
                                         <div className="nav-link" onClick={() => removeFromCart(item.id)}>
-                                            <icons.delete className={'menu-icon'} />
+                                            <icons.delete className="menu-icon" />
                                             Удалить
                                         </div>
                                     </div>
@@ -187,12 +187,6 @@ const CartItems = ({ user, onLogout, setBalance, itemStatus, cartItems, setCartI
                     </div>
                 ))}
             </div>
-            {notificationState !== 'hidden' && (
-                <div className={`notification ${notificationState}`}>
-                    <img src={successIcon} alt="notification" />
-                    <span>{notificationMessage}</span>
-                </div>
-            )}
         </div>
     );
 };

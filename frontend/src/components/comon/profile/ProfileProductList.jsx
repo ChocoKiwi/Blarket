@@ -1,3 +1,4 @@
+// ProfileProductList.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../../../api';
@@ -79,19 +80,6 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                     const response = await api.get(url, { withCredentials: true });
                     const data = response.data || [];
 
-                    // Check for duplicate IDs
-                    const idCounts = data.reduce((acc, item) => {
-                        const id = item.announcementId || item.id;
-                        acc[id] = (acc[id] || 0) + 1;
-                        return acc;
-                    }, {});
-                    const duplicates = Object.entries(idCounts).filter(([id, count]) => count > 1);
-                    if (duplicates.length > 0) {
-                        console.warn('Duplicate IDs detected:', duplicates);
-                    }
-
-                    console.log('API response for deferred items:', data); // Log API response
-
                     const normalizedData = data.map((item, index) => {
                         let imageUrls = [];
                         if (isPurchased || isDeferred) {
@@ -103,27 +91,41 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                             }
                         } else {
                             imageUrls = typeof item.imageUrls === 'string' && item.imageUrls
-                                ? item.imageUrls.split(',')
+                                ? JSON.parse(item.imageUrls)
                                 : (Array.isArray(item.imageUrls) ? item.imageUrls : []);
                         }
 
                         return {
                             id: item.announcementId || item.id,
                             cartItemId: isDeferred ? item.id : undefined,
-                            orderId: item.orderId,
                             imageUrls,
                             title: item.announcementTitle || item.title,
                             authorName: item.authorName || userData?.name || 'Без имени',
                             price: item.price ? parseFloat(item.price) : 0,
                             condition: getConditionText(item.condition),
-                            quantitySold: item.quantitySold || item.quantity || 0,
+                            quantitySold: item.quantity || 0, // Используем quantity для покупок
                             userId: item.userId || (userData?.id ?? user?.id),
-                            status: isPurchased ? 'SOLD' : (item.status || 'ACTIVE'),
+                            status: item.status || (item.availableQuantity === 0 ? 'SOLD' : 'ACTIVE'),
                             itemStatus: item.itemStatus || 'CART',
-                            uniqueKey: isPurchased ? `${item.announcementId || item.id}-${item.orderId || index}` : item.announcementId || item.id,
+                            uniqueKey: item.announcementId || item.id,
                         };
                     });
-                    setAnnouncements(normalizedData);
+
+                    // Удаление дубликатов по announcementId
+                    const uniqueAnnouncements = Array.from(
+                        normalizedData.reduce((map, item) => {
+                            const key = item.id;
+                            if (!map.has(key)) {
+                                map.set(key, item);
+                            } else {
+                                const existing = map.get(key);
+                                existing.quantitySold += item.quantitySold;
+                            }
+                            return map;
+                        }, new Map()).values()
+                    );
+
+                    setAnnouncements(uniqueAnnouncements);
                     setLoading(false);
                 } catch (err) {
                     console.error('Ошибка загрузки данных:', err);
@@ -157,27 +159,41 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                 }
             } else {
                 imageUrls = typeof item.imageUrls === 'string' && item.imageUrls
-                    ? item.imageUrls.split(',')
+                    ? JSON.parse(item.imageUrls)
                     : (Array.isArray(item.imageUrls) ? item.imageUrls : []);
             }
 
             return {
                 id: item.announcementId || item.id,
                 cartItemId: isDeferred ? item.id : undefined,
-                orderId: item.orderId,
                 imageUrls,
                 title: item.announcementTitle || item.title,
                 authorName: item.authorName || userData?.name || 'Без имени',
                 price: item.price ? parseFloat(item.price) : 0,
                 condition: getConditionText(item.condition),
-                quantitySold: item.quantitySold || item.quantity || 0,
+                quantitySold: item.quantity || 0,
                 userId: item.userId || (userData?.id ?? user?.id),
-                status: isPurchased ? 'SOLD' : (item.status || 'ACTIVE'),
+                status: item.status || (item.availableQuantity === 0 ? 'SOLD' : 'ACTIVE'),
                 itemStatus: item.itemStatus || 'CART',
-                uniqueKey: isPurchased ? `${item.announcementId || item.id}-${item.orderId || index}` : item.announcementId || item.id,
+                uniqueKey: item.announcementId || item.id,
             };
         });
-        setAnnouncements(normalizedResults);
+
+        // Удаление дубликатов по announcementId
+        const uniqueResults = Array.from(
+            normalizedResults.reduce((map, item) => {
+                const key = item.id;
+                if (!map.has(key)) {
+                    map.set(key, item);
+                } else {
+                    const existing = map.get(key);
+                    existing.quantitySold += item.quantitySold;
+                }
+                return map;
+            }, new Map()).values()
+        );
+
+        setAnnouncements(uniqueResults);
     };
 
     const restoreItem = async (cartItemId, title) => {
@@ -448,7 +464,6 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                 </div>
                 <div className="product-list">
                     {announcements.map((announcement) => (
-                        <div key={announcement.uniqueKey} className="product-card-wrapper">
                             <ProductCard
                                 id={announcement.id}
                                 imageUrl={announcement.imageUrls?.[0] || ''}
@@ -465,7 +480,6 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                                 isDeferred={isDeferred}
                                 restoreItem={() => restoreItem(announcement.cartItemId, announcement.title)}
                             />
-                        </div>
                     ))}
                 </div>
             </div>

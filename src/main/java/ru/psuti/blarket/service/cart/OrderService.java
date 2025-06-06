@@ -1,6 +1,7 @@
+// OrderService.java
 package ru.psuti.blarket.service.cart;
 
-import com.fasterxml.jackson.core.type.TypeReference; // Правильный импорт
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,8 +17,7 @@ import ru.psuti.blarket.repository.announcement.AnnouncementRepository;
 import ru.psuti.blarket.repository.cart.OrderRepository;
 
 import java.time.LocalDateTime;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,7 +29,7 @@ public class OrderService {
     private final AnnouncementRepository announcementRepository;
     private final WalletRepository walletRepository;
     private final CartService cartService;
-    private final ObjectMapper objectMapper; // Внедряем ObjectMapper
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public void checkout(Long userId, List<CartItemDTO> cartItems) {
@@ -77,19 +77,28 @@ public class OrderService {
             if (announcement.getQuantity() == 0) {
                 announcement.setStatus(Announcement.Status.SOLD);
             }
-
             announcementRepository.save(announcement);
 
-            Order order = Order.builder()
-                    .user(user)
-                    .announcement(announcement)
-                    .quantity(item.getQuantity())
-                    .totalPrice(item.getPrice() * item.getQuantity())
-                    .status(Order.OrderStatus.COMPLETED)
-                    .itemStatus(Order.ItemStatus.CART)
-                    .createdAt(LocalDateTime.now())
-                    .build();
-            orderRepository.save(order);
+            // Проверка на существующий заказ
+            Optional<Order> existingOrder = orderRepository.findByUserAndAnnouncement(user, announcement);
+            if (existingOrder.isPresent()) {
+                Order order = existingOrder.get();
+                order.setQuantity(order.getQuantity() + item.getQuantity());
+                order.setTotalPrice(order.getTotalPrice() + (item.getPrice() * item.getQuantity()));
+                order.setCreatedAt(LocalDateTime.now());
+                orderRepository.save(order);
+            } else {
+                Order order = Order.builder()
+                        .user(user)
+                        .announcement(announcement)
+                        .quantity(item.getQuantity())
+                        .totalPrice(item.getPrice() * item.getQuantity())
+                        .status(Order.OrderStatus.COMPLETED)
+                        .itemStatus(Order.ItemStatus.CART)
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                orderRepository.save(order);
+            }
         }
 
         wallet.setBalance(wallet.getBalance() - totalPrice);
@@ -100,29 +109,35 @@ public class OrderService {
 
     public List<CartItemDTO> getPurchasedItems(Long userId, String sort) {
         List<Order> orders = orderRepository.findPurchasedByUserId(userId);
-        List<CartItemDTO> items = orders.stream()
-                .map(order -> {
-                    CartItemDTO dto = new CartItemDTO();
-                    dto.setId(order.getId());
-                    dto.setAnnouncementId(order.getAnnouncement().getId());
-                    dto.setAnnouncementTitle(order.getAnnouncement().getTitle());
-                    dto.setPrice(order.getAnnouncement().getPrice());
-                    String imageUrlsJson = order.getAnnouncement().getImageUrls();
-                    String[] imageUrls = new String[0];
-                    if (imageUrlsJson != null) {
-                        try {
-                            imageUrls = objectMapper.readValue(imageUrlsJson, new TypeReference<String[]>() {});
-                        } catch (Exception e) {
-                            imageUrls = imageUrlsJson.split(",");
-                        }
+
+        // Группировка по announcementId
+        Map<Long, CartItemDTO> aggregatedItems = new HashMap<>();
+        for (Order order : orders) {
+            Long announcementId = order.getAnnouncement().getId();
+            CartItemDTO dto = aggregatedItems.computeIfAbsent(announcementId, k -> {
+                CartItemDTO newDto = new CartItemDTO();
+                newDto.setId(order.getId());
+                newDto.setAnnouncementId(announcementId);
+                newDto.setAnnouncementTitle(order.getAnnouncement().getTitle());
+                newDto.setPrice(order.getAnnouncement().getPrice());
+                String imageUrlsJson = order.getAnnouncement().getImageUrls();
+                String[] imageUrls = new String[0];
+                if (imageUrlsJson != null) {
+                    try {
+                        imageUrls = objectMapper.readValue(imageUrlsJson, new TypeReference<String[]>() {});
+                    } catch (Exception e) {
+                        imageUrls = imageUrlsJson.split(",");
                     }
-                    dto.setImageUrl(imageUrls.length > 0 ? imageUrls[0] : null);
-                    dto.setQuantity(order.getQuantity());
-                    dto.setAvailableQuantity(order.getAnnouncement().getQuantity());
-                    dto.setItemStatus(order.getItemStatus());
-                    return dto;
-                })
-                .collect(Collectors.toList());
+                }
+                newDto.setImageUrl(imageUrls.length > 0 ? imageUrls[0] : null);
+                newDto.setAvailableQuantity(order.getAnnouncement().getQuantity());
+                newDto.setItemStatus(order.getAnnouncement().getQuantity() == 0 ? Order.ItemStatus.SOLD : order.getItemStatus());
+                return newDto;
+            });
+            dto.setQuantity(dto.getQuantity() != null ? dto.getQuantity() + order.getQuantity() : order.getQuantity());
+        }
+
+        List<CartItemDTO> items = new ArrayList<>(aggregatedItems.values());
 
         // Применяем сортировку
         switch (sort != null ? sort.toLowerCase() : "popularity") {

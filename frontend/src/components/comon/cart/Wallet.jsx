@@ -1,11 +1,12 @@
+// Wallet.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import WalletIcon from '../../assets/icons/solar_wallet-bold.svg';
-import successIcon from '../../assets/icons/sucsses.svg';
-import api from '../../api';
-import '../../App.scss';
+import WalletIcon from '../../../assets/icons/solar_wallet-bold.svg';
+import successIcon from '../../../assets/icons/sucsses.svg';
+import api from '../../../api';
+import '../../../App.scss';
 
-const Wallet = ({ user, onLogout, setBalance, cartItems, setCartItems, formatPrice }) => {
+const Wallet = ({ user, onLogout, setBalance, cartItems, setCartItems, formatPrice, fetchCart }) => {
     const [balance, setLocalBalance] = useState(0);
     const [amount, setAmount] = useState('');
     const [notificationMessage, setNotificationMessage] = useState('');
@@ -61,7 +62,7 @@ const Wallet = ({ user, onLogout, setBalance, cartItems, setCartItems, formatPri
         try {
             const response = await api.post('/orders/checkout', { cartItems }, { withCredentials: true });
             if (response.status === 200) {
-                setCartItems([]); // Очищаем корзину на клиенте
+                setCartItems([]);
                 const variations = [
                     'Товары успешно куплены!',
                     'Готово! Заказ успешно оформлен.',
@@ -69,7 +70,7 @@ const Wallet = ({ user, onLogout, setBalance, cartItems, setCartItems, formatPri
                     'Заказ оформлен. Отлично!'
                 ];
                 showNotification(variations[Math.floor(Math.random() * variations.length)]);
-                await fetchWallet(); // Обновляем баланс
+                await fetchWallet();
             }
         } catch (error) {
             showNotification('Ошибка при оформлении заказа: ' + (error.response?.data?.message || error.message), 'error');
@@ -86,6 +87,9 @@ const Wallet = ({ user, onLogout, setBalance, cartItems, setCartItems, formatPri
             if (data.status === 'COMPLETED') {
                 showNotification('Пополнение успешно');
                 await fetchWallet();
+                if (fetchCart) {
+                    await fetchCart(); // Перезапрашиваем корзину
+                }
             } else {
                 showNotification('Пополнение не удалось', 'error');
             }

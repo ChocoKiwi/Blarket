@@ -6,9 +6,9 @@ import Register from './components/pages/Register';
 import Profile from './components/pages/Profile';
 import Home from './components/pages/Home';
 import ProductPage from './components/pages/ProductPage';
-import Wallet from "./components/comon/Wallet";
+import Wallet from './components/comon/cart/Wallet';
 import SellerProfile from './components/pages/SellerProfile';
-import Cart from "./components/pages/Cart";
+import Cart from './components/pages/Cart';
 import api from './api';
 import './App.scss';
 
