@@ -87,24 +87,18 @@ public class OrderService {
             }
             announcementRepository.save(announcement);
 
-            Optional<Order> existingOrder = orderRepository.findByUserAndAnnouncement(user, announcement);
-            Order order;
-            if (existingOrder.isPresent()) {
-                order = existingOrder.get();
-                order.setQuantity(order.getQuantity() + item.getQuantity());
-                order.setTotalPrice(order.getTotalPrice() + (item.getPrice() * item.getQuantity()));
-                order.setCreatedAt(LocalDateTime.now());
-            } else {
-                order = Order.builder()
+            // Create separate orders for each quantity to avoid aggregation
+            for (int i = 0; i < item.getQuantity(); i++) {
+                Order order = Order.builder()
                         .user(user)
                         .announcement(announcement)
-                        .quantity(item.getQuantity())
-                        .totalPrice(item.getPrice() * item.getQuantity())
+                        .quantity(1) // One item per order
+                        .totalPrice(item.getPrice()) // Price for one item
                         .status(Order.OrderStatus.COMPLETED)
                         .createdAt(LocalDateTime.now())
                         .build();
+                orderRepository.save(order);
             }
-            orderRepository.save(order);
         }
 
         wallet.setBalance(wallet.getBalance() - finalCost);
