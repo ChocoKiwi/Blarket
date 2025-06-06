@@ -1,5 +1,6 @@
 package ru.psuti.blarket.service.cart;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,9 +31,12 @@ public class OrderService {
     private final CartService cartService;
 
     @Transactional
-    public void checkout(Long userId, List<CartItemDTO> cartItems) {
+    public void checkout(Long userId, List<CartItemDTO> cartItems, @NotNull(message = "Итоговая стоимость не может быть пустой") Double finalCost) {
         if (cartItems == null || cartItems.isEmpty()) {
             throw new IllegalArgumentException("Корзина пуста");
+        }
+        if (finalCost == null || finalCost <= 0) {
+            throw new IllegalArgumentException("Итоговая стоимость заказа некорректна");
         }
         for (CartItemDTO item : cartItems) {
             if (item.getAnnouncementId() == null || item.getQuantity() == null || item.getPrice() == null) {
@@ -54,12 +58,19 @@ public class OrderService {
             throw new IllegalStateException("Кошелёк не найден");
         }
 
-        double totalPrice = cartItems.stream()
+        double calculatedTotalPrice = cartItems.stream()
                 .mapToDouble(item -> item.getPrice() * item.getQuantity())
                 .sum();
+        double deliveryCost = 249.0;
+        double discount = Math.floor(calculatedTotalPrice * 0.1);
+        double expectedFinalCost = calculatedTotalPrice + deliveryCost - discount;
 
-        if (wallet.getBalance() < totalPrice) {
-            throw new IllegalStateException("Недостаточно средств на балансе: требуется " + totalPrice + " руб.");
+        if (Math.abs(expectedFinalCost - finalCost) > 0.01) {
+            throw new IllegalArgumentException("Итоговая стоимость не соответствует расчётам: ожидалось " + expectedFinalCost + " руб.");
+        }
+
+        if (wallet.getBalance() < finalCost) {
+            throw new IllegalStateException("Недостаточно средств на балансе: требуется " + finalCost + " руб.");
         }
 
         for (CartItemDTO item : cartItems) {
@@ -96,7 +107,7 @@ public class OrderService {
             orderRepository.save(order);
         }
 
-        wallet.setBalance(wallet.getBalance() - totalPrice);
+        wallet.setBalance(wallet.getBalance() - finalCost);
         walletRepository.save(wallet);
 
         cartService.clearCart(userId);
@@ -106,7 +117,6 @@ public class OrderService {
         List<CartItemDTO> items = orderRepository.findAggregatedPurchasedByUserId(userId);
 
         for (CartItemDTO item : items) {
-            // Подтягиваем imageUrls из Announcement
             Announcement announcement = announcementRepository.findById(item.getAnnouncementId())
                     .orElseThrow(() -> new IllegalStateException("Объявление не найдено для ID: "));
             String imageUrls = announcement.getImageUrls();

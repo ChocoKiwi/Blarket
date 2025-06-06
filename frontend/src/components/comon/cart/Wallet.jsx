@@ -1,4 +1,3 @@
-// Wallet.jsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import WalletIcon from '../../../assets/icons/solar_wallet-bold.svg';
@@ -70,7 +69,8 @@ const Wallet = ({ user, onLogout, setBalance, cartItems, setCartItems, formatPri
         }
         setIsCheckoutLoading(true);
         try {
-            const response = await api.post('/orders/checkout', { cartItems }, { withCredentials: true });
+            const finalCost = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 249 - Math.floor(cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0) * 0.1);
+            const response = await api.post('/orders/checkout', { cartItems, finalCost }, { withCredentials: true });
             if (response.status === 200) {
                 setCartItems([]);
                 const variations = [

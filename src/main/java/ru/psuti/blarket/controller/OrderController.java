@@ -29,7 +29,7 @@ public class OrderController {
             @Valid @RequestBody CheckoutRequest request) {
         logger.info("Processing checkout for userId: {}", user.getId());
         try {
-            orderService.checkout(user.getId(), request.getCartItems());
+            orderService.checkout(user.getId(), request.getCartItems(), request.getFinalCost());
             return ResponseEntity.ok().body(new ResponseMessage("success", "Заказ успешно оформлен"));
         } catch (IllegalArgumentException | IllegalStateException e) {
             logger.error("Checkout failed: {}", e.getMessage());
@@ -59,6 +59,9 @@ public class OrderController {
     static class CheckoutRequest {
         @jakarta.validation.constraints.NotNull(message = "Список товаров не может быть пустым")
         private List<CartItemDTO> cartItems;
+
+        @jakarta.validation.constraints.NotNull(message = "Итоговая стоимость не может быть пустой")
+        private Double finalCost;
     }
 
     @Getter
