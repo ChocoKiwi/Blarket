@@ -373,8 +373,14 @@ public class AnnouncementController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Неавторизован"));
         }
         try {
-            Announcement announcement = announcementService.getPublicAnnouncementById(id);
-            // Регистрируем посещение, visitorAddress не используется, так как берем из User
+            Announcement announcement;
+            // Проверяем, является ли пользователь владельцем объявления
+            try {
+                announcement = announcementService.getAnnouncementById(id, refreshedUser);
+            } catch (RuntimeException e) {
+                // Если пользователь не владелец, пробуем получить публичное объявление
+                announcement = announcementService.getPublicAnnouncementById(id);
+            }
             announcementService.trackAnnouncementView(id, refreshedUser, null);
             return ResponseEntity.ok(AnnouncementDTO.fromAnnouncement(announcement));
         } catch (Exception e) {

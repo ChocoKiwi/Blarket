@@ -37,7 +37,12 @@ const CartItems = ({ user, onLogout, setBalance, deferred, cartItems, setCartIte
             if (newQuantity < 1) return;
             setLoadingItem(true);
             try {
-                const { data } = await api.put(`/cart/${cartItemId}`, { quantity: newQuantity }, { withCredentials: true });
+                const item = cartItems.find(i => i.id === cartItemId);
+                if (!item) return;
+                const { data } = await api.put(`/cart/${cartItemId}`, {
+                    quantity: newQuantity,
+                    announcementId: item.announcementId
+                }, { withCredentials: true });
                 if (!deferred) {
                     setCartItems(prev => prev.map(item => (item.id === cartItemId ? { ...item, quantity: data.quantity } : item)));
                     showNotification(data.announcementTitle || 'Товар', 'количество обновлено');

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import api from '../../api';
 import icons from '../../assets/icons/icons';
 import '../../App.scss';
@@ -7,7 +7,8 @@ import Star from '../../assets/icons/star1.svg';
 import successIcon from '../../assets/icons/sucsses.svg';
 
 const AnnouncementCard = () => {
-    const { id } = useParams(); // ID продукта
+    const { id } = useParams();
+    const location = useLocation();
     const [announcement, setAnnouncement] = useState(null);
     const [category, setCategory] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -18,10 +19,10 @@ const AnnouncementCard = () => {
     const [notificationMessage, setNotificationMessage] = useState('');
     const [notificationState, setNotificationState] = useState('hidden');
 
-    // Форматирование цены
+    const isProfileRoute = location.pathname.startsWith('/profile/');
+
     const formatPrice = (price) => price?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') || '0';
 
-    // Отображение состояния товара
     const getConditionText = (condition) => {
         switch (condition) {
             case 'NEW':
@@ -35,11 +36,9 @@ const AnnouncementCard = () => {
         }
     };
 
-    // Загрузка данных объявления и категории
     const fetchData = async () => {
         setLoading(true);
         try {
-            // Запрос объявления
             const { data: announcementData } = await api.get(`/announcements/${id}`, { withCredentials: true });
             setAnnouncement({
                 ...announcementData,
@@ -49,7 +48,6 @@ const AnnouncementCard = () => {
                 commentsCount: announcementData.commentsCount || 0,
             });
 
-            // Запрос категории, если categoryId существует
             if (announcementData.categoryId) {
                 const { data: categoryData } = await api.get(`/categories/with-parent/${announcementData.categoryId}`, { withCredentials: true });
                 setCategory(categoryData);
@@ -74,31 +72,26 @@ const AnnouncementCard = () => {
         fetchData();
     }, [id]);
 
-    // Установка первого изображения по умолчанию
     useEffect(() => {
         if (announcement?.imageUrls?.length > 0) {
             setSelectedImage(announcement.imageUrls[0]);
         }
     }, [announcement]);
 
-    // Обработка выбора изображения
     const handleImageSelect = (imageUrl) => {
         setSelectedImage(imageUrl);
     };
 
-    // Переключение полного описания
     const toggleDescription = () => {
         setIsDescriptionExpanded(!isDescriptionExpanded);
     };
 
-    // Увеличение количества
     const incrementQuantity = () => {
         if (quantity < announcement.quantity) {
             setQuantity(quantity + 1);
         }
     };
 
-    // Уменьшение количества
     const decrementQuantity = () => {
         if (quantity > 1) {
             setQuantity(quantity - 1);
@@ -223,17 +216,22 @@ const AnnouncementCard = () => {
                                 +
                             </button>
                         </div>
-                        <button className="buy-button" onClick={addToCart}>
+                        <button
+                            className="buy-button"
+                            onClick={addToCart}
+                            disabled={isProfileRoute}
+                            style={isProfileRoute ? { opacity: 0.7 } : {}}
+                        >
                             В корзину
                         </button>
                     </div>
                 </div>
                 <div className="additional-info">
-                    <p className="address"> <b>Адрес</b>{announcement.address || 'Адрес не указан'}</p>
+                    <p className="address"> <b>Адрес</b> {announcement.address || 'Адрес не указан'}</p>
                     <p className="quantity">
-                        <b>Количество:</b>{announcement.quantity === 1 ? '1 шт.' : `${announcement.quantity} шт.`}
+                        <b>Количество:</b> {announcement.quantity === 1 ? '1 шт.' : `${announcement.quantity} шт.`}
                     </p>
-                    <p className="product-id"><b>ID товара:</b>{announcement.id}</p>
+                    <p className="product-id"><b>ID товара:</b> {announcement.id}</p>
                 </div>
             </div>
             {notificationState !== 'hidden' && (
