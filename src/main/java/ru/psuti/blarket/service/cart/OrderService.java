@@ -106,8 +106,12 @@ public class OrderService {
         List<CartItemDTO> items = orderRepository.findAggregatedPurchasedByUserId(userId);
 
         for (CartItemDTO item : items) {
-            String[] imageUrls = ImageUrlUtil.parseImageUrls(item.getImageUrl());
-            item.setImageUrl(imageUrls.length > 0 ? imageUrls[0] : null);
+            // Подтягиваем imageUrls из Announcement
+            Announcement announcement = announcementRepository.findById(item.getAnnouncementId())
+                    .orElseThrow(() -> new IllegalStateException("Объявление не найдено для ID: "));
+            String imageUrls = announcement.getImageUrls();
+            String[] parsedUrls = ImageUrlUtil.parseImageUrls(imageUrls);
+            item.setImageUrl(parsedUrls.length > 0 ? parsedUrls[0] : null);
             item.setAvailableQuantity(item.getAvailableQuantity() == 0 ? 0 : item.getAvailableQuantity());
         }
 

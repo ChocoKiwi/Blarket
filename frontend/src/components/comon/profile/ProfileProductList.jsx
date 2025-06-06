@@ -1,4 +1,3 @@
-// ProfileProductList.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../../../api';
@@ -80,14 +79,19 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                     const response = await api.get(url, { withCredentials: true });
                     const data = response.data || [];
 
-                    const normalizedData = data.map((item, index) => {
+                    const normalizedData = data.map((item) => {
                         let imageUrls = [];
                         if (isPurchased || isDeferred) {
-                            try {
-                                const parsed = JSON.parse(item.imageUrl || '[]');
-                                imageUrls = Array.isArray(parsed) ? parsed : [item.imageUrl];
-                            } catch {
-                                imageUrls = item.imageUrl ? [item.imageUrl] : [];
+                            // Обрабатываем как строку base64 или массив
+                            if (typeof item.imageUrl === 'string') {
+                                try {
+                                    const parsed = JSON.parse(item.imageUrl);
+                                    imageUrls = Array.isArray(parsed) ? parsed : [item.imageUrl];
+                                } catch {
+                                    imageUrls = item.imageUrl.startsWith('data:image/') ? [item.imageUrl] : [];
+                                }
+                            } else {
+                                imageUrls = Array.isArray(item.imageUrl) ? item.imageUrl : [];
                             }
                         } else {
                             imageUrls = typeof item.imageUrls === 'string' && item.imageUrls
@@ -103,7 +107,7 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                             authorName: item.authorName || userData?.name || 'Без имени',
                             price: item.price ? parseFloat(item.price) : 0,
                             condition: getConditionText(item.condition),
-                            quantitySold: item.quantity || 0, // Используем quantity для покупок
+                            quantitySold: item.quantity || 0,
                             userId: item.userId || (userData?.id ?? user?.id),
                             status: item.status || (item.availableQuantity === 0 ? 'SOLD' : 'ACTIVE'),
                             itemStatus: item.itemStatus || 'CART',
@@ -111,7 +115,6 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                         };
                     });
 
-                    // Удаление дубликатов по announcementId
                     const uniqueAnnouncements = Array.from(
                         normalizedData.reduce((map, item) => {
                             const key = item.id;
@@ -148,14 +151,18 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
     }, [userId, selectedStatus, selectedSortValue, onLogout, isHomePage, isPurchased, isDeferred, userData, user, externalAnnouncements]);
 
     const handleSearchResults = (searchResults) => {
-        const normalizedResults = searchResults.map((item, index) => {
+        const normalizedResults = searchResults.map((item) => {
             let imageUrls = [];
             if (isPurchased || isDeferred) {
-                try {
-                    const parsed = JSON.parse(item.imageUrl || '[]');
-                    imageUrls = Array.isArray(parsed) ? parsed : [item.imageUrl];
-                } catch {
-                    imageUrls = item.imageUrl ? [item.imageUrl] : [];
+                if (typeof item.imageUrl === 'string') {
+                    try {
+                        const parsed = JSON.parse(item.imageUrl);
+                        imageUrls = Array.isArray(parsed) ? parsed : [item.imageUrl];
+                    } catch {
+                        imageUrls = item.imageUrl.startsWith('data:image/') ? [item.imageUrl] : [];
+                    }
+                } else {
+                    imageUrls = Array.isArray(item.imageUrl) ? item.imageUrl : [];
                 }
             } else {
                 imageUrls = typeof item.imageUrls === 'string' && item.imageUrls
@@ -179,7 +186,6 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
             };
         });
 
-        // Удаление дубликатов по announcementId
         const uniqueResults = Array.from(
             normalizedResults.reduce((map, item) => {
                 const key = item.id;
@@ -197,7 +203,6 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
     };
 
     const restoreItem = async (cartItemId, title) => {
-        console.log('Restoring item with cartItemId:', cartItemId, 'title:', title);
         try {
             await api.put(`/cart/defer/${cartItemId}?defer=false`, null, { withCredentials: true });
             const updatedItems = announcements.filter((item) => item.cartItemId !== cartItemId);
@@ -464,22 +469,23 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                 </div>
                 <div className="product-list">
                     {announcements.map((announcement) => (
-                            <ProductCard
-                                id={announcement.id}
-                                imageUrl={announcement.imageUrls?.[0] || ''}
-                                title={announcement.title}
-                                authorName={announcement.authorName}
-                                price={announcement.price}
-                                condition={announcement.condition}
-                                quantitySold={announcement.quantitySold}
-                                isOwnProfile={isOwnProfile}
-                                userId={announcement.userId}
-                                status={announcement.status}
-                                itemStatus={announcement.itemStatus}
-                                isPurchased={isPurchased}
-                                isDeferred={isDeferred}
-                                restoreItem={() => restoreItem(announcement.cartItemId, announcement.title)}
-                            />
+                        <ProductCard
+                            key={announcement.uniqueKey}
+                            id={announcement.id}
+                            imageUrl={announcement.imageUrls?.[0] || ''}
+                            title={announcement.title}
+                            authorName={announcement.authorName}
+                            price={announcement.price}
+                            condition={announcement.condition}
+                            quantitySold={announcement.quantitySold}
+                            isOwnProfile={isOwnProfile}
+                            userId={announcement.userId}
+                            status={announcement.status}
+                            itemStatus={announcement.itemStatus}
+                            isPurchased={isPurchased}
+                            isDeferred={isDeferred}
+                            restoreItem={() => restoreItem(announcement.cartItemId, announcement.title)}
+                        />
                     ))}
                 </div>
             </div>

@@ -49,15 +49,20 @@ const ProductCard = ({ id, imageUrl, title, authorName, price, condition, status
     const buttonClass = `product-button ${isOwnProfile || isSold ? 'details-button' : 'cart-button'} ${isSold ? 'sold-button' : ''}`;
     const buttonText = isSold ? `Продано: ${quantitySold} шт.` : isOwnProfile ? 'Подробнее' : itemStatus === 'DEFERRED' ? 'Восстановить' : 'В корзину';
 
+    // Убедимся, что imageUrl является строкой и начинается с 'data:image/'
+    const validImageUrl = imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('data:image/')
+        ? imageUrl
+        : '/path/to/placeholder-image.jpg'; // Замените на путь к заглушке изображения, если нужно
+
     return (
         <div className={`product-card ${status}`} style={{ position: 'relative' }}>
             {isSold ? (
                 <div className="product-image-link disabled">
-                    <img src={imageUrl} alt={title} className="product-image" />
+                    <img src={validImageUrl} alt={title} className="product-image" />
                 </div>
             ) : (
                 <Link to={`/users/${userId}/product/${id}`} className="product-image-link">
-                    <img src={imageUrl} alt={title} className="product-image" />
+                    <img src={validImageUrl} alt={title} className="product-image" />
                 </Link>
             )}
             <div className="product-main">
