@@ -1,18 +1,18 @@
-// src/components/ui/ProfileProductList.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../../../api';
-import ProductCard from '../../ui/ProductCard';
+import ProductCard from './../../ui/ProductCard';
 import SearchAndFilter from '../../ui/SearchAndFilter';
 import '../../../App.scss';
 import icons from '../../../assets/icons/icons';
-import check from '../../../assets/icons/sucsses.svg';
+import successIcon from '../../../assets/icons/sucsses.svg';
 
 const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = false, isDeferred = false, externalAnnouncements }) => {
     const { id: paramId } = useParams();
     const [announcements, setAnnouncements] = useState(externalAnnouncements || []);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [notificationMessage, setNotificationMessage] = useState('');
+    const [notificationState, setNotificationState] = useState('hidden');
     const [selectedSort, setSelectedSort] = useState('самые популярные');
     const [selectedSortValue, setSelectedSortValue] = useState('popularity');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -21,6 +21,13 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
     const [userData, setUserData] = useState(null);
     const userId = isPurchased || isDeferred ? user?.id : (isHomePage ? null : paramId);
     const isOwnProfile = !isHomePage && !isPurchased && !isDeferred && user && userId && parseInt(userId) === user.id;
+
+    const showNotification = (message) => {
+        setNotificationMessage(message);
+        setNotificationState('visible');
+        setTimeout(() => setNotificationState('hiding'), 3000);
+        setTimeout(() => setNotificationState('hidden'), 3500);
+    };
 
     const getConditionText = (condition) => {
         switch (condition) {
@@ -43,6 +50,7 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                     setUserData(response.data);
                 } catch (err) {
                     console.error('Ошибка загрузки данных пользователя:', err);
+                    showNotification('Ошибка загрузки данных пользователя');
                 }
             };
             fetchUserData();
@@ -70,10 +78,23 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                     }
                     const response = await api.get(url, { withCredentials: true });
                     const data = response.data || [];
-                    const normalizedData = data.map((item) => {
+
+                    // Check for duplicate IDs
+                    const idCounts = data.reduce((acc, item) => {
+                        const id = item.announcementId || item.id;
+                        acc[id] = (acc[id] || 0) + 1;
+                        return acc;
+                    }, {});
+                    const duplicates = Object.entries(idCounts).filter(([id, count]) => count > 1);
+                    if (duplicates.length > 0) {
+                        console.warn('Duplicate IDs detected:', duplicates);
+                    }
+
+                    console.log('API response for deferred items:', data); // Log API response
+
+                    const normalizedData = data.map((item, index) => {
                         let imageUrls = [];
                         if (isPurchased || isDeferred) {
-                            // Для CartItemDTO imageUrl может быть JSON-строкой или строкой
                             try {
                                 const parsed = JSON.parse(item.imageUrl || '[]');
                                 imageUrls = Array.isArray(parsed) ? parsed : [item.imageUrl];
@@ -81,7 +102,6 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                                 imageUrls = item.imageUrl ? [item.imageUrl] : [];
                             }
                         } else {
-                            // Для AnnouncementDTO imageUrls — строка с запятыми
                             imageUrls = typeof item.imageUrls === 'string' && item.imageUrls
                                 ? item.imageUrls.split(',')
                                 : (Array.isArray(item.imageUrls) ? item.imageUrls : []);
@@ -89,6 +109,8 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
 
                         return {
                             id: item.announcementId || item.id,
+                            cartItemId: isDeferred ? item.id : undefined,
+                            orderId: item.orderId,
                             imageUrls,
                             title: item.announcementTitle || item.title,
                             authorName: item.authorName || userData?.name || 'Без имени',
@@ -96,21 +118,22 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                             condition: getConditionText(item.condition),
                             quantitySold: item.quantitySold || item.quantity || 0,
                             userId: item.userId || (userData?.id ?? user?.id),
-                            status: item.status || 'ACTIVE',
+                            status: isPurchased ? 'SOLD' : (item.status || 'ACTIVE'),
+                            itemStatus: item.itemStatus || 'CART',
+                            uniqueKey: isPurchased ? `${item.announcementId || item.id}-${item.orderId || index}` : item.announcementId || item.id,
                         };
                     });
                     setAnnouncements(normalizedData);
                     setLoading(false);
-                    setError(null);
                 } catch (err) {
                     console.error('Ошибка загрузки данных:', err);
                     if (err.response?.status === 401) {
-                        setError('Неавторизован');
+                        showNotification('Неавторизован');
                         onLogout();
                     } else if (err.response?.status === 404) {
-                        setError('Данные не найдены');
+                        showNotification('Данные не найдены');
                     } else {
-                        setError('Ошибка загрузки данных: ' + err.message);
+                        showNotification('Ошибка загрузки данных: ' + err.message);
                     }
                     setLoading(false);
                 }
@@ -123,7 +146,7 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
     }, [userId, selectedStatus, selectedSortValue, onLogout, isHomePage, isPurchased, isDeferred, userData, user, externalAnnouncements]);
 
     const handleSearchResults = (searchResults) => {
-        const normalizedResults = searchResults.map((item) => {
+        const normalizedResults = searchResults.map((item, index) => {
             let imageUrls = [];
             if (isPurchased || isDeferred) {
                 try {
@@ -140,6 +163,8 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
 
             return {
                 id: item.announcementId || item.id,
+                cartItemId: isDeferred ? item.id : undefined,
+                orderId: item.orderId,
                 imageUrls,
                 title: item.announcementTitle || item.title,
                 authorName: item.authorName || userData?.name || 'Без имени',
@@ -147,10 +172,31 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                 condition: getConditionText(item.condition),
                 quantitySold: item.quantitySold || item.quantity || 0,
                 userId: item.userId || (userData?.id ?? user?.id),
-                status: item.status || 'ACTIVE',
+                status: isPurchased ? 'SOLD' : (item.status || 'ACTIVE'),
+                itemStatus: item.itemStatus || 'CART',
+                uniqueKey: isPurchased ? `${item.announcementId || item.id}-${item.orderId || index}` : item.announcementId || item.id,
             };
         });
         setAnnouncements(normalizedResults);
+    };
+
+    const restoreItem = async (cartItemId, title) => {
+        console.log('Restoring item with cartItemId:', cartItemId, 'title:', title);
+        try {
+            await api.put(`/cart/defer/${cartItemId}?defer=false`, null, { withCredentials: true });
+            const updatedItems = announcements.filter((item) => item.cartItemId !== cartItemId);
+            setAnnouncements(updatedItems);
+            const variations = [
+                `Товар "${title}" восстановлен!`,
+                `Готово! "${title}" успешно восстановлен.`,
+                `Успех! Товар "${title}" восстановлен.`,
+                `"${title}" восстановлен. Отлично!`
+            ];
+            showNotification(variations[Math.floor(Math.random() * variations.length)]);
+        } catch (e) {
+            console.error('Restore error:', e);
+            showNotification(e.response?.data?.message || 'Ошибка при восстановлении товара');
+        }
     };
 
     const handleOptionSelect = (option, value) => {
@@ -189,13 +235,112 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
         return <div className="text-center loading">Загрузка...</div>;
     }
 
-    if (error) {
+    if (announcements.length === 0) {
         return (
-            <div className="error-block">
-                <p className="error-text">{error}</p>
-                <button className="button" onClick={() => window.location.reload()}>
-                    Повторить
-                </button>
+            <div className="profile-product-list">
+                {!isHomePage && !isPurchased && !isDeferred && (
+                    <SearchAndFilter
+                        userId={userId}
+                        onSearchResults={handleSearchResults}
+                        selectedSortValue={selectedSortValue}
+                    />
+                )}
+                <div className="flex">
+                    <div className="title-sort">
+                        {(!isPurchased && !isDeferred) && (
+                            <h2>
+                                {isHomePage ? 'Все объявления' : 'Объявления пользователя'}
+                            </h2>
+                        )}
+                        <div className="filter-sort-container">
+                            <div
+                                className="sort-container"
+                                onMouseEnter={handleMouseEnter}
+                                onMouseLeave={handleMouseLeave}
+                            >
+                                <img src={icons.sort} alt="sort" />
+                                <div className="sort-button">{selectedSort}</div>
+                                <div
+                                    className={`sort-menu ${isMenuOpen ? 'sort-menu--open' : ''}`}
+                                    onMouseEnter={handleMouseEnter}
+                                    onMouseLeave={handleMouseLeave}
+                                >
+                                    <div
+                                        className="sort-option"
+                                        data-value="popularity"
+                                        onClick={() => handleOptionSelect('самые популярные', 'popularity')}
+                                    >
+                                        <span className="sort-option-text">самые популярные</span>
+                                        {selectedSort === 'самые популярные' && (
+                                            <img src={successIcon} alt="icon" />
+                                        )}
+                                    </div>
+                                    <div
+                                        className="sort-option"
+                                        data-value="newest"
+                                        onClick={() => handleOptionSelect('самые новые', 'newest')}
+                                    >
+                                        <span className="sort-option-text">самые новые</span>
+                                        {selectedSort === 'самые новые' && (
+                                            <img src={successIcon} alt="icon" />
+                                        )}
+                                    </div>
+                                    <div
+                                        className="sort-option"
+                                        data-value="expensive"
+                                        onClick={() => handleOptionSelect('сначала дорогие', 'expensive')}
+                                    >
+                                        <span className="sort-option-text">сначала дорогие</span>
+                                        {selectedSort === 'сначала дорогие' && (
+                                            <img src={successIcon} alt="icon" />
+                                        )}
+                                    </div>
+                                    <div
+                                        className="sort-option"
+                                        data-value="cheapest"
+                                        onClick={() => handleOptionSelect('сначала дешёвые', 'cheapest')}
+                                    >
+                                        <span className="sort-option-text">сначала дешёвые</span>
+                                        {selectedSort === 'сначала дешёвые' && (
+                                            <img src={successIcon} alt="icon" />
+                                        )}
+                                    </div>
+                                    <div
+                                        className="sort-option"
+                                        data-value="rating"
+                                        onClick={() => handleOptionSelect('высокий рейтинг', 'rating')}
+                                    >
+                                        <span className="sort-option-text">высокий рейтинг</span>
+                                        {selectedSort === 'высокий рейтинг' && (
+                                            <img src={successIcon} alt="icon" />
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            {!isHomePage && !isPurchased && !isDeferred && (
+                                <div className="status-filter">
+                                    <button
+                                        className={`condition-chip ${selectedStatus === null ? 'selected' : ''} ${loading ? 'disabled' : ''}`}
+                                        onClick={() => handleStatusSelect(null)}
+                                        disabled={loading}
+                                    >
+                                        <span>Активные</span>
+                                    </button>
+                                    <button
+                                        className={`condition-chip ${selectedStatus === 'SOLD' ? 'selected' : ''} ${loading ? 'disabled' : ''}`}
+                                        onClick={() => handleStatusSelect('SOLD')}
+                                        disabled={loading}
+                                    >
+                                        <span>Проданные</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <p className="text-placeholder text-center">
+                        {isPurchased ? 'Нет купленных товаров' : isDeferred ? 'Нет отложенных товаров' : 'Объявления отсутствуют'}
+                    </p>
+                </div>
             </div>
         );
     }
@@ -211,9 +356,11 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
             )}
             <div className="flex">
                 <div className="title-sort">
-                    <h2>
-                        {isPurchased ? 'Купленные товары' : isDeferred ? 'Отложенные товары' : isHomePage ? 'Все объявления' : 'Объявления пользователя'}
-                    </h2>
+                    {(!isPurchased && !isDeferred) && (
+                        <h2>
+                            {isHomePage ? 'Все объявления' : 'Объявления пользователя'}
+                        </h2>
+                    )}
                     <div className="filter-sort-container">
                         <div
                             className="sort-container"
@@ -234,7 +381,7 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                                 >
                                     <span className="sort-option-text">самые популярные</span>
                                     {selectedSort === 'самые популярные' && (
-                                        <img src={check} alt="icon" />
+                                        <img src={successIcon} alt="icon" />
                                     )}
                                 </div>
                                 <div
@@ -244,7 +391,7 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                                 >
                                     <span className="sort-option-text">самые новые</span>
                                     {selectedSort === 'самые новые' && (
-                                        <img src={check} alt="icon" />
+                                        <img src={successIcon} alt="icon" />
                                     )}
                                 </div>
                                 <div
@@ -254,7 +401,7 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                                 >
                                     <span className="sort-option-text">сначала дорогие</span>
                                     {selectedSort === 'сначала дорогие' && (
-                                        <img src={check} alt="icon" />
+                                        <img src={successIcon} alt="icon" />
                                     )}
                                 </div>
                                 <div
@@ -264,7 +411,7 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                                 >
                                     <span className="sort-option-text">сначала дешёвые</span>
                                     {selectedSort === 'сначала дешёвые' && (
-                                        <img src={check} alt="icon" />
+                                        <img src={successIcon} alt="icon" />
                                     )}
                                 </div>
                                 <div
@@ -274,7 +421,7 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                                 >
                                     <span className="sort-option-text">высокий рейтинг</span>
                                     {selectedSort === 'высокий рейтинг' && (
-                                        <img src={check} alt="icon" />
+                                        <img src={successIcon} alt="icon" />
                                     )}
                                 </div>
                             </div>
@@ -299,15 +446,10 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                         )}
                     </div>
                 </div>
-                {announcements.length === 0 ? (
-                    <p className="text-placeholder text-center">
-                        {isPurchased ? 'Нет купленных товаров' : isDeferred ? 'Нет отложенных товаров' : 'Объявления отсутствуют'}
-                    </p>
-                ) : (
-                    <div className="product-list">
-                        {announcements.map((announcement) => (
+                <div className="product-list">
+                    {announcements.map((announcement) => (
+                        <div key={announcement.uniqueKey} className="product-card-wrapper">
                             <ProductCard
-                                key={announcement.id}
                                 id={announcement.id}
                                 imageUrl={announcement.imageUrls?.[0] || ''}
                                 title={announcement.title}
@@ -318,11 +460,21 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                                 isOwnProfile={isOwnProfile}
                                 userId={announcement.userId}
                                 status={announcement.status}
+                                itemStatus={announcement.itemStatus}
+                                isPurchased={isPurchased}
+                                isDeferred={isDeferred}
+                                restoreItem={() => restoreItem(announcement.cartItemId, announcement.title)}
                             />
-                        ))}
-                    </div>
-                )}
+                        </div>
+                    ))}
+                </div>
             </div>
+            {notificationState !== 'hidden' && (
+                <div className={`notification ${notificationState}`}>
+                    <img src={successIcon} alt="notification" />
+                    <span>{notificationMessage}</span>
+                </div>
+            )}
         </div>
     );
 };

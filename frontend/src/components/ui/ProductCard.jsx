@@ -11,36 +11,43 @@ const formatPrice = (price) => {
     return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 };
 
-const ProductCard = ({ id, imageUrl, title, authorName, price, condition, status, quantitySold, isOwnProfile, userId }) => {
+const ProductCard = ({ id, imageUrl, title, authorName, price, condition, status, quantitySold, isOwnProfile, userId, itemStatus, isPurchased, isDeferred, restoreItem }) => {
     const [notificationMessage, setNotificationMessage] = useState('');
     const [notificationState, setNotificationState] = useState('hidden');
+
+    const showNotification = (message) => {
+        setNotificationMessage(message);
+        setNotificationState('visible');
+        setTimeout(() => setNotificationState('hiding'), 3000);
+        setTimeout(() => setNotificationState('hidden'), 3500);
+    };
 
     const addToCart = async () => {
         try {
             await api.post('/cart/add', { announcementId: id, quantity: 1 }, { withCredentials: true });
-            setNotificationMessage('Товар добавлен в корзину!');
-            setNotificationState('visible');
-            setTimeout(() => setNotificationState('hiding'), 3000);
-            setTimeout(() => setNotificationState('hidden'), 3500);
+            const variations = [
+                `Товар "${title}" добавлен в корзину!`,
+                `Готово! "${title}" успешно добавлен.`,
+                `Успех! Товар "${title}" в корзине.`,
+                `"${title}" добавлен в корзину. Отлично!`
+            ];
+            showNotification(variations[Math.floor(Math.random() * variations.length)]);
         } catch (e) {
-            setNotificationMessage('Ошибка: ' + (e.response?.data?.message || e.message));
-            setNotificationState('visible');
-            setTimeout(() => setNotificationState('hiding'), 3000);
-            setTimeout(() => setNotificationState('hidden'), 3500);
+            showNotification(`Ошибка: ${e.response?.data?.message || e.message}`);
         }
     };
 
-    // Определяем отображаемый текст статуса
-    const statusDisplay = {
-        ACTIVE: 'Активно',
-        BUSINESS: 'Бизнес',
-        SOLD: 'Продано',
-        DRAFT: 'Черновик',
-        ARCHIVED: 'В архиве',
+    const handleButtonClick = () => {
+        if (itemStatus === 'DEFERRED') {
+            restoreItem();
+        } else {
+            addToCart();
+        }
     };
 
     const isSold = status === 'SOLD';
     const buttonClass = `product-button ${isOwnProfile || isSold ? 'details-button' : 'cart-button'} ${isSold ? 'sold-button' : ''}`;
+    const buttonText = isSold ? `Продано: ${quantitySold} шт.` : isOwnProfile ? 'Подробнее' : itemStatus === 'DEFERRED' ? 'Восстановить' : 'В корзину';
 
     return (
         <div className={`product-card ${status}`} style={{ position: 'relative' }}>
@@ -80,15 +87,17 @@ const ProductCard = ({ id, imageUrl, title, authorName, price, condition, status
                     </div>
                     <div className="product-price">
                         <p className="price">{formatPrice(price)} ₽</p>
-                        <p className="condition">{condition || 'Не указано'}</p>
+                        {!(isPurchased || isDeferred) && (
+                            <p className="condition">{condition || 'Не указано'}</p>
+                        )}
                     </div>
                 </div>
                 <button
-                    onClick={isOwnProfile || isSold ? null : addToCart}
+                    onClick={isOwnProfile || isSold ? null : handleButtonClick}
                     className={buttonClass}
                     disabled={isOwnProfile || isSold}
                 >
-                    {isSold ? `Продано: ${quantitySold} шт.` : (isOwnProfile ? 'Подробнее' : 'В корзину')}
+                    {buttonText}
                 </button>
             </div>
             {notificationState !== 'hidden' && (
@@ -111,6 +120,10 @@ ProductCard.propTypes = {
     status: PropTypes.oneOf(['ACTIVE', 'BUSINESS', 'SOLD', 'DRAFT', 'ARCHIVED']),
     isOwnProfile: PropTypes.bool,
     userId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    itemStatus: PropTypes.oneOf(['CART', 'DEFERRED']),
+    isPurchased: PropTypes.bool,
+    isDeferred: PropTypes.bool,
+    restoreItem: PropTypes.func,
 };
 
 export default ProductCard;
