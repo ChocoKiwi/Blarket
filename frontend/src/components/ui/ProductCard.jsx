@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import api from '../../api';
 import '../../App.scss';
 import Star1 from '../../assets/icons/star1.svg';
+import Star0 from '../../assets/icons/star0.svg';
 import User from '../../assets/icons/solar_user-bold.svg';
 import successIcon from '../../assets/icons/sucsses.svg';
 
@@ -81,7 +82,7 @@ const ProductCard = ({ id, imageUrl, title, authorName, price, condition, status
                             {Array(5)
                                 .fill()
                                 .map((_, index) => (
-                                    <img key={index} src={Star1} className="full-star" alt="star" />
+                                    <img key={index} src={Star0} className="full-star" alt="star" />
                                 ))}
                         </div>
                         <span className="reviews-count">Нет отзывов</span>

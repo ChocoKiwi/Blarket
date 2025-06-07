@@ -29,6 +29,7 @@ public class CartItemDTO {
 
     private Integer availableQuantity;
     private boolean deferred;
+    private Long userId;
 
     public CartItemDTO(Long id, Long announcementId, String announcementTitle, Double price,
                        String imageUrls, Integer availableQuantity, Long quantity) {

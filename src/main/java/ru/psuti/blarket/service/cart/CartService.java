@@ -46,6 +46,7 @@ public class CartService {
         dto.setQuantity(item.getQuantity());
         dto.setAvailableQuantity(item.getAnnouncement().getQuantity());
         dto.setDeferred(item.isDeferred());
+        dto.setUserId(item.getAnnouncement().getUser().getId());
         return dto;
     }
 

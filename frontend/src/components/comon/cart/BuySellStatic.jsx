@@ -28,7 +28,7 @@ const BuySellStatic = ({ user, onLogout, setUser }) => {
 
     const getOperationName = (transaction) => {
         if (transaction.announcementTitle) {
-            return `${transaction.announcementTitle}`;
+            return `Покупка: ${transaction.announcementTitle}`;
         }
         return 'Пополнение счёта';
     };

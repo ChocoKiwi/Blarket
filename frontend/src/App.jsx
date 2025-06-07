@@ -11,6 +11,7 @@ import SellerProfile from './components/pages/SellerProfile';
 import Cart from './components/pages/Cart';
 import api from './api';
 import './App.scss';
+import NotificationDisplay from "./components/NotificationDisplay";
 
 function App() {
     const [auth, setAuth] = useState(false);
@@ -67,7 +68,8 @@ function App() {
                 <Route path="/" element={auth ? <Home user={user} setUser={setUser} onLogout={onLogout} /> : <Navigate to="/login" />} />
                 <Route path="/users/:userId/product/:id" element={auth ? <ProductPage user={user} setUser={setUser} onLogout={onLogout} /> : <Navigate to="/login" />} />
                 <Route path="/users/:id" element={auth ? <SellerProfile user={user} onLogout={onLogout} /> : <Navigate to="/login" />} />
-                <Route path="/cart" element={auth ? <Cart user={user} onLogout={onLogout} /> : <Navigate to="/login" />} />
+                <Route path="/cart" element={auth ? <Cart user={user} onLogout={onLogout} /> : <Navigate to="/login" />} />/>
+                <Route path="/notifications" element={auth ? <NotificationDisplay user={user} onLogout={onLogout} /> : <Navigate to="/login" />}/>
             </Routes>
         </Router>
     );
