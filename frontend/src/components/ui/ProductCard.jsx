@@ -1,0 +1,178 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import PropTypes from 'prop-types';
+import api from '../../api';
+import Rating from './Rating';
+import '../../App.scss';
+import Star1 from '../../assets/icons/star1.svg';
+import Star0 from '../../assets/icons/star0.svg';
+import User from '../../assets/icons/solar_user-bold.svg';
+import successIcon from '../../assets/icons/sucsses.svg';
+
+const formatPrice = (price) => {
+    return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+};
+
+const ProductCard = ({ id, imageUrl, title, authorName, price, condition, status, quantitySold, isOwnProfile, userId, itemStatus, isPurchased, isDeferred, restoreItem, rating }) => {
+    const [notificationMessage, setNotificationMessage] = useState('');
+    const [notificationState, setNotificationState] = useState('hidden');
+    const [isRatingOpen, setIsRatingOpen] = useState(false);
+    const [stars, setStars] = useState([]);
+    const [hasReviewed, setHasReviewed] = useState(false);
+
+    useEffect(() => {
+        const fetchRatings = async () => {
+            console.log('[ProductCard] Загрузка рейтингов для announcementId:', id);
+            try {
+                const response = await api.get(`/ratings/announcement/${id}`, { withCredentials: true });
+                console.log('[ProductCard] Ответ API рейтингов:', response.data);
+                const averageRating = response.data.length > 0
+                    ? response.data.reduce((sum, r) => sum + r.stars, 0) / response.data.length
+                    : 0;
+                setStars(Array(5).fill().map((_, index) => index < Math.round(averageRating)));
+
+                // Проверка, оставил ли текущий пользователь отзыв
+                const userId = localStorage.getItem('userId'); // Предполагается, что userId хранится в localStorage
+                const userHasReviewed = response.data.some(review => review.userId === parseInt(userId));
+                setHasReviewed(userHasReviewed);
+                console.log('[ProductCard] Пользователь оставил отзыв:', userHasReviewed);
+            } catch (error) {
+                console.error('[ProductCard] Ошибка загрузки рейтингов:', error);
+            }
+        };
+        fetchRatings();
+    }, [id]);
+
+    const showNotification = (message) => {
+        setNotificationMessage(message);
+        setNotificationState('visible');
+        setTimeout(() => setNotificationState('hiding'), 3000);
+        setTimeout(() => setNotificationState('hidden'), 3500);
+    };
+
+    const addToCart = async () => {
+        console.log('[ProductCard] Добавление в корзину:', { announcementId: id });
+        try {
+            await api.post('/cart/add', { announcementId: id, quantity: 1 }, { withCredentials: true });
+            const variations = [
+                `Товар "${title}" добавлен в корзину!`,
+                `Готово! "${title}" успешно добавлен.`,
+                `Успех! Товар "${title}" в корзине.`,
+                `"${title}" добавлен в корзину. Отлично!`
+            ];
+            showNotification(variations[Math.floor(Math.random() * variations.length)]);
+        } catch (e) {
+            console.error('[ProductCard] Ошибка добавления в корзину:', e);
+            showNotification(`Ошибка: ${e.response?.data?.message || e.message}`);
+        }
+    };
+
+    const handleButtonClick = () => {
+        if (itemStatus === 'DEFERRED') {
+            restoreItem();
+        } else {
+            addToCart();
+        }
+    };
+
+    const isSold = status === 'SOLD';
+    const buttonClass = `product-button ${isOwnProfile || isSold ? 'details-button' : 'cart-button'} ${isSold ? 'sold-button' : ''}`;
+    const buttonText = isSold ? `Продано: ${quantitySold} шт.` : isOwnProfile ? 'Подробнее' : itemStatus === 'DEFERRED' ? 'Восстановить' : 'В корзину';
+
+    const validImageUrl = imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('data:image/')
+        ? imageUrl
+        : '/path/to/placeholder-image.jpg';
+
+    return (
+        <div className={`product-card ${status}`} style={{ position: 'relative' }}>
+            {isSold ? (
+                <div className="product-image-link disabled">
+                    <img src={validImageUrl} alt={title} className="product-image" />
+                </div>
+            ) : (
+                <Link to={`/users/${userId}/product/${id}`} className="product-image-link">
+                    <img src={validImageUrl} alt={title} className="product-image" />
+                </Link>
+            )}
+            <div className="product-main">
+                <div className="under-button">
+                    {isSold ? (
+                        <div className="product-title-link disabled">
+                            <h3 className="product-title">{title}</h3>
+                        </div>
+                    ) : (
+                        <Link to={`/users/${userId}/product/${id}`} className="product-title-link">
+                            <h3 className="product-title">{title}</h3>
+                        </Link>
+                    )}
+                    <div className="product-rating">
+                        <div className="stars">
+                            {stars.map((filled, index) => (
+                                <img key={index} src={filled ? Star1 : Star0} className="full-star" alt="star" />
+                            ))}
+                        </div>
+                        <span className="reviews-count">{stars.filter(Boolean).length} / 5</span>
+                    </div>
+                    <div className="product-author">
+                        <img src={User} className="author-icon" alt="user" />
+                        <span className="author-name">{authorName}</span>
+                    </div>
+                    <div className="product-price">
+                        <p className="price">{formatPrice(price)} ₽</p>
+                        {!(isPurchased || isDeferred) && (
+                            <p className="condition">{condition || 'Не указано'}</p>
+                        )}
+                    </div>
+                </div>
+                <button
+                    onClick={isOwnProfile || isSold ? null : handleButtonClick}
+                    className={buttonClass}
+                    disabled={isOwnProfile || isSold}
+                >
+                    {buttonText}
+                </button>
+                {isPurchased && !hasReviewed && (
+                    <button
+                        onClick={() => setIsRatingOpen(true)}
+                        className="review-button"
+                        style={{ display: 'block', marginTop: '10px', color: '#007bff', background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                        Оставить отзыв
+                    </button>
+                )}
+            </div>
+            {notificationState !== 'hidden' && (
+                <div className={`notification ${notificationState}`}>
+                    <img src={successIcon} alt="notification" />
+                    <span>{notificationMessage}</span>
+                </div>
+            )}
+            {isRatingOpen && (
+                <Rating
+                    onClose={() => setIsRatingOpen(false)}
+                    productTitle={title}
+                    announcementId={id}
+                />
+            )}
+        </div>
+    );
+};
+
+ProductCard.propTypes = {
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    imageUrl: PropTypes.string,
+    title: PropTypes.string.isRequired,
+    authorName: PropTypes.string,
+    price: PropTypes.number.isRequired,
+    condition: PropTypes.string,
+    status: PropTypes.oneOf(['ACTIVE', 'BUSINESS', 'SOLD', 'DRAFT', 'ARCHIVED']),
+    isOwnProfile: PropTypes.bool,
+    userId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    itemStatus: PropTypes.oneOf(['CART', 'DEFERRED']),
+    isPurchased: PropTypes.bool,
+    isDeferred: PropTypes.bool,
+    restoreItem: PropTypes.func,
+    rating: PropTypes.number,
+};
+
+export default ProductCard;

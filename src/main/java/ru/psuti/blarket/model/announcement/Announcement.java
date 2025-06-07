@@ -1,0 +1,69 @@
+package ru.psuti.blarket.model.announcement;
+
+import jakarta.persistence.*;
+import lombok.*;
+import ru.psuti.blarket.model.Rating;
+import ru.psuti.blarket.model.user.User;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Entity
+@Table(name = "announcements",
+        indexes = {@Index(name = "uk_user_title", columnList = "user_id, title", unique = true)})
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Announcement {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String title;
+    @Column(columnDefinition = "LONGTEXT")
+    private String description;
+    private Double price;
+
+    @Column(name = "image_urls", columnDefinition = "LONGTEXT")
+    private String imageUrls;
+
+    private String address;
+    private Integer quantity;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", columnDefinition = "VARCHAR(20)")
+    private Condition condition;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", columnDefinition = "VARCHAR(20)")
+    private Status status;
+
+    @ManyToOne
+    private Category category;
+
+    @ManyToOne
+    private User user;
+
+    @OneToMany(mappedBy = "announcement", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Rating> ratings;
+
+    @ElementCollection
+    @CollectionTable(name = "announcement_delivery_options", joinColumns = @JoinColumn(name = "announcement_id"))
+    @Column(name = "delivery_option")
+    private List<String> deliveryOptions;
+
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private Integer views;
+    private Float rating;
+
+    public enum Condition {
+        NEW, USED, BUYSELL
+    }
+
+    public enum Status {
+        ACTIVE, BUSINESS, DRAFT, ARCHIVED, SOLD
+    }
+}

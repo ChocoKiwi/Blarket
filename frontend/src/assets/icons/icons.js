@@ -14,7 +14,15 @@ import Pen from './solar_pen-bold.svg?react'
 import Chart from './solar_chart-bold.svg?react'
 import Eye from './solar_eye-bold.svg?react'
 import CommentCount from './solar_chat-square-like-bold.svg?react'
-
+import Archive from './solar_archive-linear.svg?react'
+import Publish from './solar_export-bold.svg?react'
+import Rest from './solar_restart-square-bold.svg?react'
+import Info from './solar_info-circle-bold.svg?react'
+import Tuning from './solar_tuning-2-bold.svg?react'
+import Sort from './solar_sort-vertical-bold.svg'
+import Star1 from './star1.svg'
+import Star0 from './star0.svg'
+import Star05 from './star05.svg'
 
 const icons = {
     home: HomeIcon,
@@ -32,7 +40,16 @@ const icons = {
     pen:Pen,
     chart:Chart,
     eye: Eye,
-    commentCount: CommentCount
+    commentCount: CommentCount,
+    archive: Archive,
+    publish: Publish,
+    rest: Rest,
+    info: Info,
+    sort: Sort,
+    tuning: Tuning,
+    star1: Star1,
+    star0: Star0,
+    star05: Star05,
 };
 
 export default icons;
