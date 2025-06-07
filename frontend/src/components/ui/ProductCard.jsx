@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import api from '../../api';
+import Rating from './Rating';
 import '../../App.scss';
 import Star1 from '../../assets/icons/star1.svg';
 import Star0 from '../../assets/icons/star0.svg';
@@ -12,9 +13,35 @@ const formatPrice = (price) => {
     return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 };
 
-const ProductCard = ({ id, imageUrl, title, authorName, price, condition, status, quantitySold, isOwnProfile, userId, itemStatus, isPurchased, isDeferred, restoreItem }) => {
+const ProductCard = ({ id, imageUrl, title, authorName, price, condition, status, quantitySold, isOwnProfile, userId, itemStatus, isPurchased, isDeferred, restoreItem, rating }) => {
     const [notificationMessage, setNotificationMessage] = useState('');
     const [notificationState, setNotificationState] = useState('hidden');
+    const [isRatingOpen, setIsRatingOpen] = useState(false);
+    const [stars, setStars] = useState([]);
+    const [hasReviewed, setHasReviewed] = useState(false);
+
+    useEffect(() => {
+        const fetchRatings = async () => {
+            console.log('[ProductCard] Загрузка рейтингов для announcementId:', id);
+            try {
+                const response = await api.get(`/ratings/announcement/${id}`, { withCredentials: true });
+                console.log('[ProductCard] Ответ API рейтингов:', response.data);
+                const averageRating = response.data.length > 0
+                    ? response.data.reduce((sum, r) => sum + r.stars, 0) / response.data.length
+                    : 0;
+                setStars(Array(5).fill().map((_, index) => index < Math.round(averageRating)));
+
+                // Проверка, оставил ли текущий пользователь отзыв
+                const userId = localStorage.getItem('userId'); // Предполагается, что userId хранится в localStorage
+                const userHasReviewed = response.data.some(review => review.userId === parseInt(userId));
+                setHasReviewed(userHasReviewed);
+                console.log('[ProductCard] Пользователь оставил отзыв:', userHasReviewed);
+            } catch (error) {
+                console.error('[ProductCard] Ошибка загрузки рейтингов:', error);
+            }
+        };
+        fetchRatings();
+    }, [id]);
 
     const showNotification = (message) => {
         setNotificationMessage(message);
@@ -24,6 +51,7 @@ const ProductCard = ({ id, imageUrl, title, authorName, price, condition, status
     };
 
     const addToCart = async () => {
+        console.log('[ProductCard] Добавление в корзину:', { announcementId: id });
         try {
             await api.post('/cart/add', { announcementId: id, quantity: 1 }, { withCredentials: true });
             const variations = [
@@ -34,6 +62,7 @@ const ProductCard = ({ id, imageUrl, title, authorName, price, condition, status
             ];
             showNotification(variations[Math.floor(Math.random() * variations.length)]);
         } catch (e) {
+            console.error('[ProductCard] Ошибка добавления в корзину:', e);
             showNotification(`Ошибка: ${e.response?.data?.message || e.message}`);
         }
     };
@@ -50,10 +79,9 @@ const ProductCard = ({ id, imageUrl, title, authorName, price, condition, status
     const buttonClass = `product-button ${isOwnProfile || isSold ? 'details-button' : 'cart-button'} ${isSold ? 'sold-button' : ''}`;
     const buttonText = isSold ? `Продано: ${quantitySold} шт.` : isOwnProfile ? 'Подробнее' : itemStatus === 'DEFERRED' ? 'Восстановить' : 'В корзину';
 
-    // Убедимся, что imageUrl является строкой и начинается с 'data:image/'
     const validImageUrl = imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('data:image/')
         ? imageUrl
-        : '/path/to/placeholder-image.jpg'; // Замените на путь к заглушке изображения, если нужно
+        : '/path/to/placeholder-image.jpg';
 
     return (
         <div className={`product-card ${status}`} style={{ position: 'relative' }}>
@@ -79,13 +107,11 @@ const ProductCard = ({ id, imageUrl, title, authorName, price, condition, status
                     )}
                     <div className="product-rating">
                         <div className="stars">
-                            {Array(5)
-                                .fill()
-                                .map((_, index) => (
-                                    <img key={index} src={Star0} className="full-star" alt="star" />
-                                ))}
+                            {stars.map((filled, index) => (
+                                <img key={index} src={filled ? Star1 : Star0} className="full-star" alt="star" />
+                            ))}
                         </div>
-                        <span className="reviews-count">Нет отзывов</span>
+                        <span className="reviews-count">{stars.filter(Boolean).length} / 5</span>
                     </div>
                     <div className="product-author">
                         <img src={User} className="author-icon" alt="user" />
@@ -105,12 +131,28 @@ const ProductCard = ({ id, imageUrl, title, authorName, price, condition, status
                 >
                     {buttonText}
                 </button>
+                {isPurchased && !hasReviewed && (
+                    <button
+                        onClick={() => setIsRatingOpen(true)}
+                        className="review-button"
+                        style={{ display: 'block', marginTop: '10px', color: '#007bff', background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                        Оставить отзыв
+                    </button>
+                )}
             </div>
             {notificationState !== 'hidden' && (
                 <div className={`notification ${notificationState}`}>
                     <img src={successIcon} alt="notification" />
                     <span>{notificationMessage}</span>
                 </div>
+            )}
+            {isRatingOpen && (
+                <Rating
+                    onClose={() => setIsRatingOpen(false)}
+                    productTitle={title}
+                    announcementId={id}
+                />
             )}
         </div>
     );
@@ -130,6 +172,7 @@ ProductCard.propTypes = {
     isPurchased: PropTypes.bool,
     isDeferred: PropTypes.bool,
     restoreItem: PropTypes.func,
+    rating: PropTypes.number,
 };
 
 export default ProductCard;

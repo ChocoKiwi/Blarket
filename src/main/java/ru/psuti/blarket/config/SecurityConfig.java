@@ -16,14 +16,11 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
-/**
- * Конфигурация безопасности приложения с настройками CORS, CSRF и аутентификации.
- */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private static final String[] PUBLIC_ENDPOINTS = {"/api/registration", "/api/login", "/api/logout"};
+    private static final String[] PUBLIC_ENDPOINTS = {"/api/registration", "/api/login", "/api/logout", "/api/ratings/announcement/**"};
     private static final List<String> ALLOWED_ORIGINS = List.of("http://localhost:5173", "http://localhost:5174", "http://localhost:3000");
     private static final List<String> ALLOWED_METHODS = List.of("GET", "POST", "PUT", "DELETE", "OPTIONS");
     private static final String API_PATH = "/api/**";

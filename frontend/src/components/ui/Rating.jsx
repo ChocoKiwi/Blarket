@@ -1,20 +1,63 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import Star0 from '../assets/icons/star0.svg';
-import Star1 from '../assets/icons/star1.svg';
-import '../App.scss';
+import Star0 from '../../assets/icons/star0.svg';
+import Star1 from '../../assets/icons/star1.svg';
+import api from '../../api';
+import '../../App.scss';
 
-const Rating = ({ onClose, productTitle }) => {
+const Rating = ({ onClose, productTitle, announcementId }) => {
     const [rating, setRating] = useState(0);
     const [hoverRating, setHoverRating] = useState(0);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [images, setImages] = useState([]);
+    const [notification, setNotification] = useState({ message: '', state: 'hidden' });
 
-    const handleSubmit = (e) => {
+    const handleImageUpload = (e) => {
+        const files = Array.from(e.target.files);
+        Promise.all(files.map(file => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.readAsDataURL(file);
+            });
+        })).then(base64Images => {
+            setImages(prev => [...prev, ...base64Images]);
+        });
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Placeholder for future server logic
-        console.log({ title, description, rating });
-        onClose();
+        console.log('[Rating] Отправка отзыва:', { title, description, stars: rating, announcementId });
+        try {
+            const ratingData = {
+                title,
+                description,
+                stars: rating,
+                imageUrls: images,
+                announcementId
+            };
+            const response = await api.post('/ratings', ratingData, { withCredentials: true });
+            console.log('[Rating] Успешно отправлен отзыв:', response.data);
+            setNotification({
+                message: `Отзыв для "${productTitle}" успешно отправлен!`,
+                state: 'visible'
+            });
+            setTimeout(() => setNotification(prev => ({ ...prev, state: 'hiding' })), 2000);
+            setTimeout(() => {
+                setNotification(prev => ({ ...prev, state: 'hidden' }));
+                onClose();
+            }, 2500);
+        } catch (error) {
+            const errorMessage = error.response?.data || 'Не удалось отправить отзыв';
+            console.error('[Rating] Ошибка отправки отзыва:', errorMessage);
+            setNotification({
+                message: `Ошибка: ${errorMessage}`,
+                state: 'visible'
+            });
+            setTimeout(() => setNotification(prev => ({ ...prev, state: 'hiding' })), 2000);
+            setTimeout(() => setNotification(prev => ({ ...prev, state: 'hidden' })), 2500);
+        }
     };
 
     return (
@@ -31,7 +74,7 @@ const Rating = ({ onClose, productTitle }) => {
             width: '400px',
             maxWidth: '90%'
         }}>
-            <div className="rating-header">
+            <div className="rating-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3>Оставить отзыв для "{productTitle}"</h3>
                 <button onClick={onClose} style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: '20px' }}>
                     ×
@@ -76,6 +119,17 @@ const Rating = ({ onClose, productTitle }) => {
                         style={{ width: '100%', padding: '8px', margin: '5px 0', minHeight: '100px' }}
                     />
                 </div>
+                <div className="form-group">
+                    <label htmlFor="review-images">Фотографии</label>
+                    <input
+                        id="review-images"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleImageUpload}
+                        style={{ width: '100%', padding: '8px', margin: '5px 0' }}
+                    />
+                </div>
                 <button
                     type="submit"
                     style={{
@@ -90,6 +144,12 @@ const Rating = ({ onClose, productTitle }) => {
                     Отправить
                 </button>
             </form>
+            {notification.state !== 'hidden' && (
+                <div className={`notification ${notification.state}`}>
+                    <img src="/src/assets/icons/sucsses.svg" alt="notification" />
+                    <span>{notification.message}</span>
+                </div>
+            )}
         </div>
     );
 };
@@ -97,6 +157,7 @@ const Rating = ({ onClose, productTitle }) => {
 Rating.propTypes = {
     onClose: PropTypes.func.isRequired,
     productTitle: PropTypes.string.isRequired,
+    announcementId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
 };
 
 export default Rating;

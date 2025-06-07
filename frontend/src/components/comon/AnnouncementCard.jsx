@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import api from '../../api';
 import icons from '../../assets/icons/icons';
+import ReviewList from '../ui/ReviewList';
 import '../../App.scss';
 import Star from '../../assets/icons/star1.svg';
 import successIcon from '../../assets/icons/sucsses.svg';
@@ -21,6 +22,8 @@ const AnnouncementCard = () => {
 
     const isProfileRoute = location.pathname.startsWith('/profile/');
 
+    console.log('[AnnouncementCard] Извлечённый ID объявления:', id);
+
     const formatPrice = (price) => price?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') || '0';
 
     const getConditionText = (condition) => {
@@ -37,19 +40,22 @@ const AnnouncementCard = () => {
     };
 
     const fetchData = async () => {
+        console.log('[AnnouncementCard] Загрузка данных для announcementId:', id);
         setLoading(true);
         try {
             const { data: announcementData } = await api.get(`/announcements/${id}`, { withCredentials: true });
+            console.log('[AnnouncementCard] Данные объявления:', announcementData);
             setAnnouncement({
                 ...announcementData,
                 imageUrls: Array.isArray(announcementData.imageUrls) ? announcementData.imageUrls : [],
                 views: announcementData.views || 0,
                 quantity: announcementData.quantity || 1,
-                commentsCount: announcementData.commentsCount || 0,
+                commentsCount: announcementData.ratings?.length || 0,
             });
 
             if (announcementData.categoryId) {
                 const { data: categoryData } = await api.get(`/categories/with-parent/${announcementData.categoryId}`, { withCredentials: true });
+                console.log('[AnnouncementCard] Данные категории:', categoryData);
                 setCategory(categoryData);
             } else {
                 setCategory({ child: { name: 'Без категории' } });
@@ -58,7 +64,7 @@ const AnnouncementCard = () => {
             setLoading(false);
             setError(null);
         } catch (e) {
-            console.error('Ошибка загрузки данных:', e);
+            console.error('[AnnouncementCard] Ошибка загрузки данных:', e);
             if (e.response?.status === 401) {
                 setError('Неавторизован');
             } else {
@@ -99,6 +105,7 @@ const AnnouncementCard = () => {
     };
 
     const addToCart = async () => {
+        console.log('[AnnouncementCard] Добавление в корзину:', { announcementId: id, quantity });
         if (quantity > announcement.quantity) {
             setNotificationMessage(`Нельзя добавить больше ${announcement.quantity} шт.`);
             setNotificationState('visible');
@@ -113,6 +120,7 @@ const AnnouncementCard = () => {
             setTimeout(() => setNotificationState('hiding'), 3000);
             setTimeout(() => setNotificationState('hidden'), 3500);
         } catch (e) {
+            console.error('[AnnouncementCard] Ошибка добавления в корзину:', e);
             setNotificationMessage('Ошибка: ' + (e.response?.data?.message || e.message));
             setNotificationState('visible');
             setTimeout(() => setNotificationState('hiding'), 3000);
@@ -180,7 +188,7 @@ const AnnouncementCard = () => {
                         <div className="stars">
                             {[...Array(5)].map((_, index) => (
                                 <span key={index} className="star">
-                                    <img src={Star}/>
+                                    <img src={Star} alt="star" />
                                 </span>
                             ))}
                             <span className="rating-text">
@@ -227,13 +235,14 @@ const AnnouncementCard = () => {
                     </div>
                 </div>
                 <div className="additional-info">
-                    <p className="address"> <b>Адрес</b> {announcement.address || 'Адрес не указан'}</p>
+                    <p className="address"><b>Адрес:</b> {announcement.address || 'Адрес не указан'}</p>
                     <p className="quantity">
                         <b>Количество:</b> {announcement.quantity === 1 ? '1 шт.' : `${announcement.quantity} шт.`}
                     </p>
                     <p className="product-id"><b>ID товара:</b> {announcement.id}</p>
                 </div>
             </div>
+            <ReviewList />
             {notificationState !== 'hidden' && (
                 <div className={`notification ${notificationState}`}>
                     <img src={successIcon} alt="notification" />

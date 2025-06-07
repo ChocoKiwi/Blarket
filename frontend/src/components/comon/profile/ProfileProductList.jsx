@@ -111,6 +111,7 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                             status: item.status || (item.availableQuantity === 0 ? 'SOLD' : 'ACTIVE'),
                             itemStatus: item.itemStatus || 'CART',
                             uniqueKey: item.announcementId || item.id,
+                            rating: item.rating || 0,
                         };
                     });
 
@@ -127,7 +128,6 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                         }, new Map()).values()
                     );
 
-                    // Sort announcements so SOLD items appear at the end
                     const sortedAnnouncements = uniqueAnnouncements.sort((a, b) => {
                         if (a.status === 'SOLD' && b.status !== 'SOLD') return 1;
                         if (a.status !== 'SOLD' && b.status === 'SOLD') return -1;
@@ -151,7 +151,6 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
             };
             fetchAnnouncements();
         } else {
-            // Sort external announcements so SOLD items appear at the end
             const sortedExternal = externalAnnouncements.sort((a, b) => {
                 if (a.status === 'SOLD' && b.status !== 'SOLD') return 1;
                 if (a.status !== 'SOLD' && b.status === 'SOLD') return -1;
@@ -195,6 +194,7 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                 status: item.status || (item.availableQuantity === 0 ? 'SOLD' : 'ACTIVE'),
                 itemStatus: item.itemStatus || 'CART',
                 uniqueKey: item.announcementId || item.id,
+                rating: item.rating || 0,
             };
         });
 
@@ -211,7 +211,6 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
             }, new Map()).values()
         );
 
-        // Sort search results so SOLD items appear at the end
         const sortedResults = uniqueResults.sort((a, b) => {
             if (a.status === 'SOLD' && b.status !== 'SOLD') return 1;
             if (a.status !== 'SOLD' && b.status === 'SOLD') return -1;
@@ -504,6 +503,7 @@ const ProfileProductList = ({ user, onLogout, isHomePage = false, isPurchased = 
                             isPurchased={isPurchased}
                             isDeferred={isDeferred}
                             restoreItem={() => restoreItem(announcement.cartItemId, announcement.title)}
+                            rating={announcement.rating}
                         />
                     ))}
                 </div>

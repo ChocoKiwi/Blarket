@@ -2,9 +2,9 @@ package ru.psuti.blarket.model.announcement;
 
 import jakarta.persistence.*;
 import lombok.*;
+import ru.psuti.blarket.model.Rating;
 import ru.psuti.blarket.model.user.User;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -45,6 +45,9 @@ public class Announcement {
 
     @ManyToOne
     private User user;
+
+    @OneToMany(mappedBy = "announcement", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Rating> ratings;
 
     @ElementCollection
     @CollectionTable(name = "announcement_delivery_options", joinColumns = @JoinColumn(name = "announcement_id"))

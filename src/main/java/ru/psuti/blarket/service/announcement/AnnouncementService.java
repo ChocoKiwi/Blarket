@@ -25,18 +25,14 @@ public interface AnnouncementService {
     Announcement getPublicAnnouncementById(Long id);
     List<AnnouncementDTO> getAnnouncementsByCategory(Long categoryId);
     List<AnnouncementDTO> getAnnouncementsByUserAndStatusIn(User user, List<Announcement.Status> statuses);
-    // Новый метод с параметром сортировки
     List<AnnouncementDTO> getAnnouncementsByUserAndStatusInSorted(User user, List<Announcement.Status> statuses, String sort);
     List<AnnouncementDTO> getAllAnnouncementsSorted(String sort);
     List<AnnouncementDTO> searchAnnouncementsGlobally(String query, String sort);
     Set<String> getWordCompletions(String prefix);
     List<Category> getCategoriesByAnnouncements(String query);
-
     List<Category> getCategoriesByProduct(String query);
-
     Set<String> getDynamicCompletions(String query);
     void trackAnnouncementView(Long announcementId, User user, String visitorAddress);
-    // Добавить в интерфейс
     List<AnnouncementView> getAnnouncementViewsStats(Long announcementId, LocalDateTime start, LocalDateTime end);
     long getUniqueVisitorCount(Long announcementId);
     Map<User, Long> getVisitCountsByUser(Long announcementId);
